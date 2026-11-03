@@ -5,6 +5,15 @@ These examples are meant to help you quickly visualize your Steam data in Home A
 
 > If you want to use these examples out of the box you should use the default "Steam Tracker" as the friendly name.
 
+Bei mehreren Steam-Konten wird jedes Konto als eigener Dienst mit acht Sensoren
+angezeigt. Füge weitere Konten unter **Einstellungen -> Geräte & Dienste ->
+Steam Tracker -> Dienst hinzufügen** mit unterschiedlichen Kontonamen hinzu.
+Die Beispiele verwenden `sensor.steam_tracker_*`. Kopiere die gewünschten Karten
+für weitere Konten und ersetze alle Entity-IDs durch die tatsächlichen IDs des
+jeweiligen Kontos, zum Beispiel `sensor.steam_account_b_*` bei einem neu
+eingerichteten Konto namens `Steam Account B`. Bereits bestehende Entity-IDs
+bleiben erhalten.
+
 ### Account information
 
 Needed additional integrations:

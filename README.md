@@ -112,11 +112,35 @@ Everything can be configured in the UI:
 
 1. Navigate to **Settings -> Devices & Services -> Add Integration**.
 2. Search for **Steam Tracker**.
-3. Provide your **Steam User ID**, **Steam Web API key**, and a friendly **integration name**.
+3. Provide your **Steam User ID**, **Steam Web API key**, and a friendly **account name**.
 
 > ⚠️ **Note:** If you want to use the examples out of the box use the default "Steam Tracker" as the friendly name.
 
 The integration creates sensors automatically with names based on the friendly name you choose. All examples will assume "Steam Tracker" as friendly name.
+
+### Multiple Steam accounts
+
+Each Steam account is a separate service entry under **Steam Tracker**. Its eight
+sensors are grouped under one account device, identified by its Steam ID.
+
+To add another account, open **Settings -> Devices & Services -> Steam Tracker**
+and select **Add service**, then enter that account's Steam ID, API key, and name.
+Choose distinct names, such as `Steam Account A` and `Steam Account B`, to make
+their service entries and sensors easy to distinguish. Each account can be
+reloaded or removed independently. The same Steam ID cannot be added twice.
+
+Existing UI-configured accounts are grouped automatically after reloading the
+integration or restarting Home Assistant. Existing sensor names, unique IDs, and
+entity IDs are preserved, so dashboards and automations keep their references.
+Legacy YAML sensors are not registered as account devices; account grouping
+requires a UI configuration entry.
+
+The example dashboards use `sensor.steam_tracker_*`. For additional accounts,
+copy the cards or dashboard and replace those entity references with the actual
+entity IDs shown on the corresponding account device. With the name
+`Steam Account B`, newly created sensors normally use `sensor.steam_account_b_*`.
+Renaming an existing service does not automatically rename its registered entity
+IDs; check the entity registry before editing dashboard references.
 
 Already using `configuration.yaml`? Leave your existing entry in place for the first restart so Home Assistant can import it into the UI, then remove the YAML.
 
@@ -165,7 +189,9 @@ Home Assistant slugifies the integration name. With the default `Steam Tracker` 
 - `sensor.steam_tracker_global_stats`
 - `sensor.steam_tracker_friends`
 
-Renaming the integration (e.g., `My Steam Information`) produces matching entity IDs such as `sensor.my_steam_information_game`.
+Choosing a name such as `My Steam Information` during setup produces entity IDs
+such as `sensor.my_steam_information_game`, unless those IDs are already in use.
+Existing registered entity IDs remain unchanged when the service is renamed.
 
 ### Sensors and Attributes
 

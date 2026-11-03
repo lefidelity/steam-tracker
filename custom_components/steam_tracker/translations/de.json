@@ -3,13 +3,17 @@
     "step": {
       "user": {
         "title": "Steam Tracker",
-        "description": "Verbinde Home Assistant mit deinem Steam-Konto.",
+        "description": "Füge ein Steam-Konto hinzu. Weitere Konten kannst du als separate Dienste in Steam Tracker hinzufügen. Wähle für jedes Konto einen eindeutigen Namen.",
         "data": {
           "steam_id": "Steam User ID",
           "api_key": "Steam Web-API-Key",
-          "name": "Integrationsname"
+          "name": "Kontoname"
         }
       }
+    },
+    "abort": {
+      "already_configured": "Dieses Steam-Konto ist bereits eingerichtet.",
+      "missing_import_data": "In der importierten Konfiguration fehlen Steam User ID oder Web-API-Key."
     },
     "error": {
       "steam_id_required": "Bitte gib eine Steam User ID an.",

@@ -13,10 +13,11 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_API_KEY, CONF_NAME
 from homeassistant.core import HomeAssistant
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
-from .const import CONF_STEAM_ID, DEFAULT_NAME
+from .const import CONF_STEAM_ID, DEFAULT_NAME, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -143,14 +144,30 @@ def _create_entities(api_key: str, steam_id: str, name: str) -> list["SteamBaseS
     """Create all Steam Tracker sensor entities."""
     base_name = name or DEFAULT_NAME
     return [
-        SteamStatusSensor(api_key, steam_id, f"{base_name} Status"),
-        SteamGameSensor(api_key, steam_id, f"{base_name} Game"),
-        SteamPlaytimeSensor(api_key, steam_id, f"{base_name} Playtime"),
-        SteamProfileSensor(api_key, steam_id, f"{base_name} Profile"),
-        SteamRecentGamesSensor(api_key, steam_id, f"{base_name} Recent"),
-        SteamRecentAchievementsSensor(api_key, steam_id, f"{base_name} Recent Achievements"),
-        SteamGlobalStatsSensor(api_key, steam_id, f"{base_name} Global Stats"),
-        SteamFriendsSensor(api_key, steam_id, f"{base_name} Friends"),
+        SteamStatusSensor(
+            api_key, steam_id, f"{base_name} Status", account_name=base_name
+        ),
+        SteamGameSensor(
+            api_key, steam_id, f"{base_name} Game", account_name=base_name
+        ),
+        SteamPlaytimeSensor(
+            api_key, steam_id, f"{base_name} Playtime", account_name=base_name
+        ),
+        SteamProfileSensor(
+            api_key, steam_id, f"{base_name} Profile", account_name=base_name
+        ),
+        SteamRecentGamesSensor(
+            api_key, steam_id, f"{base_name} Recent", account_name=base_name
+        ),
+        SteamRecentAchievementsSensor(
+            api_key, steam_id, f"{base_name} Recent Achievements", account_name=base_name
+        ),
+        SteamGlobalStatsSensor(
+            api_key, steam_id, f"{base_name} Global Stats", account_name=base_name
+        ),
+        SteamFriendsSensor(
+            api_key, steam_id, f"{base_name} Friends", account_name=base_name
+        ),
     ]
 
 
@@ -186,13 +203,27 @@ class SteamBaseSensor(SensorEntity):
     sensor_type = "base"
     update_interval = timedelta(minutes=5)
 
-    def __init__(self, api_key: str, steam_id: str, name: str) -> None:
+    def __init__(
+        self,
+        api_key: str,
+        steam_id: str,
+        name: str,
+        *,
+        account_name: str | None = None,
+    ) -> None:
         self._api_key = api_key
         self._steam_id = steam_id
         self._attr_name = name
         self._attr_should_poll = False
         self._attr_available = False
         self._attr_unique_id = f"{steam_id}_{self.sensor_type}"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, steam_id)},
+            name=account_name or DEFAULT_NAME,
+            manufacturer="Valve",
+            model="Steam Account",
+            entry_type=DeviceEntryType.SERVICE,
+        )
         self._state = None
         self._attrs = {}
 
