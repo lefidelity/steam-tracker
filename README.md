@@ -26,14 +26,14 @@ A Home Assistant custom integration that talks to the Steam Web API and exposes 
 
 Or click the badge below to open the repository page directly inside HACS:
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=lefidelity&repository=hacs-steam-tracker&category=integration)
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=lefidelity&repository=steam-tracker&category=integration)
 
 After installation, restart Home Assistant to load the integration.
 
 ### HACS (Manual Repository)
 1. Open **HACS -> Integrations**.
 2. Click the menu (three dots) in the top right and choose **Custom repositories**.
-3. Paste `https://github.com/lefidelity/hacs-steam-tracker` and select **Integration**.
+3. Paste `https://github.com/lefidelity/steam-tracker` and select **Integration**.
 4. Click **Add**, then search for **Steam Tracker** and install it.
 5. Restart Home Assistant.
 
@@ -157,6 +157,22 @@ sensor:
 ---
 
 ## Examples
+
+### Steam Tracker Card
+
+A separate companion project, [**Steam Tracker Card**](https://github.com/lefidelity/steam-tracker-card),
+provides a visual editor for users configuring their dashboard.
+Its first version provides profile, current game, and recently played views,
+with account selection, German/English, and compact or detailed layouts.
+It reads this integration's existing sensors and needs no additional Steam API
+credentials or custom-card dependencies.
+
+The companion is available on GitHub; HACS validation and tests in a real Home
+Assistant instance are still pending. See the [card overview](docs/steam_tracker_card.md)
+for the preview, compatibility, and repository naming details. Existing dashboard
+examples remain usable independently.
+
+[![Open Steam Tracker Card in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=lefidelity&repository=steam-tracker-card&category=plugin)
 
 To get started quickly, the repository ships with two ready-to-use Lovelace dashboards and some Lovelace cards ready to use (if you use "Steam Tracker" as the integrations friendly name).
 
