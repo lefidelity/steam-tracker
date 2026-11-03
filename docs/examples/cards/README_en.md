@@ -10,7 +10,7 @@ eight sensors. Add more accounts under **Settings -> Devices & Services ->
 Steam Tracker -> Add service**, choosing a distinct account name for each.
 These examples use `sensor.steam_tracker_*`. Copy the desired cards for other
 accounts and replace every entity ID with the actual IDs of that account, such
-as `sensor.steam_account_b_*` for a newly configured account named
+as `sensor.steam_account_b_steam_*` for a newly configured account named
 `Steam Account B`. Existing entity IDs are preserved.
 
 ### Account information

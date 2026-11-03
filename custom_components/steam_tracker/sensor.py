@@ -140,35 +140,43 @@ def _schema_achievements(response: requests.Response) -> set[str]:
     return _achievement_names(achievements, "name")
 
 
-def _create_entities(api_key: str, steam_id: str, name: str) -> list["SteamBaseSensor"]:
+def _create_entities(
+    api_key: str, steam_id: str, name: str, *, use_device_name: bool = False
+) -> list["SteamBaseSensor"]:
     """Create all Steam Tracker sensor entities."""
     base_name = name or DEFAULT_NAME
-    return [
+    prefix = "" if use_device_name else f"{base_name} "
+    if base_name != DEFAULT_NAME:
+        prefix += "Steam "
+    entities = [
         SteamStatusSensor(
-            api_key, steam_id, f"{base_name} Status", account_name=base_name
+            api_key, steam_id, f"{prefix}Status", account_name=base_name
         ),
         SteamGameSensor(
-            api_key, steam_id, f"{base_name} Game", account_name=base_name
+            api_key, steam_id, f"{prefix}Game", account_name=base_name
         ),
         SteamPlaytimeSensor(
-            api_key, steam_id, f"{base_name} Playtime", account_name=base_name
+            api_key, steam_id, f"{prefix}Playtime", account_name=base_name
         ),
         SteamProfileSensor(
-            api_key, steam_id, f"{base_name} Profile", account_name=base_name
+            api_key, steam_id, f"{prefix}Profile", account_name=base_name
         ),
         SteamRecentGamesSensor(
-            api_key, steam_id, f"{base_name} Recent", account_name=base_name
+            api_key, steam_id, f"{prefix}Recent", account_name=base_name
         ),
         SteamRecentAchievementsSensor(
-            api_key, steam_id, f"{base_name} Recent Achievements", account_name=base_name
+            api_key, steam_id, f"{prefix}Recent Achievements", account_name=base_name
         ),
         SteamGlobalStatsSensor(
-            api_key, steam_id, f"{base_name} Global Stats", account_name=base_name
+            api_key, steam_id, f"{prefix}Global Stats", account_name=base_name
         ),
         SteamFriendsSensor(
-            api_key, steam_id, f"{base_name} Friends", account_name=base_name
+            api_key, steam_id, f"{prefix}Friends", account_name=base_name
         ),
     ]
+    for entity in entities:
+        entity._attr_has_entity_name = use_device_name
+    return entities
 
 
 def setup_platform(
@@ -193,7 +201,9 @@ async def async_setup_entry(
     """Set up Steam Tracker sensors from a config entry."""
     data = entry.data
     name = entry.title or data.get(CONF_NAME, DEFAULT_NAME)
-    entities = _create_entities(data[CONF_API_KEY], data[CONF_STEAM_ID], name)
+    entities = _create_entities(
+        data[CONF_API_KEY], data[CONF_STEAM_ID], name, use_device_name=True
+    )
     async_add_entities(entities)
 
 

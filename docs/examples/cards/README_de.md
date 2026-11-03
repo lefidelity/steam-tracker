@@ -10,7 +10,7 @@ angezeigt. Füge weitere Konten unter **Einstellungen -> Geräte & Dienste ->
 Steam Tracker -> Dienst hinzufügen** mit unterschiedlichen Kontonamen hinzu.
 Die Beispiele verwenden `sensor.steam_tracker_*`. Kopiere die gewünschten Karten
 für weitere Konten und ersetze alle Entity-IDs durch die tatsächlichen IDs des
-jeweiligen Kontos, zum Beispiel `sensor.steam_account_b_*` bei einem neu
+jeweiligen Kontos, zum Beispiel `sensor.steam_account_b_steam_*` bei einem neu
 eingerichteten Konto namens `Steam Account B`. Bereits bestehende Entity-IDs
 bleiben erhalten.
 

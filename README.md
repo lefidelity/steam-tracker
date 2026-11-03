@@ -30,6 +30,14 @@ Or click the badge below to open the repository page directly inside HACS:
 
 After installation, restart Home Assistant to load the integration.
 
+### Integration icon
+
+The integration includes a local icon in `custom_components/steam_tracker/brand/`
+at 256 px and 512 px, with its SVG source. Home Assistant 2026.3 and newer load
+these images automatically after installation and restart. Older supported Home
+Assistant versions can still run the integration, but do not load local brand
+images. See [Home Assistant's branding documentation](https://contributors.home-assistant.io/core/integrations/brands/).
+
 ### HACS (Manual Repository)
 1. Open **HACS -> Integrations**.
 2. Click the menu (three dots) in the top right and choose **Custom repositories**.
@@ -138,7 +146,7 @@ requires a UI configuration entry.
 The example dashboards use `sensor.steam_tracker_*`. For additional accounts,
 copy the cards or dashboard and replace those entity references with the actual
 entity IDs shown on the corresponding account device. With the name
-`Steam Account B`, newly created sensors normally use `sensor.steam_account_b_*`.
+`Steam Account B`, newly created sensors normally use `sensor.steam_account_b_steam_*`.
 Renaming an existing service does not automatically rename its registered entity
 IDs; check the entity registry before editing dashboard references.
 
@@ -205,9 +213,16 @@ Home Assistant slugifies the integration name. With the default `Steam Tracker` 
 - `sensor.steam_tracker_global_stats`
 - `sensor.steam_tracker_friends`
 
-Choosing a name such as `My Steam Information` during setup produces entity IDs
-such as `sensor.my_steam_information_game`, unless those IDs are already in use.
-Existing registered entity IDs remain unchanged when the service is renamed.
+For a new service named `lefidelity`, entity IDs include both the account name
+and Steam, for example `sensor.lefidelity_steam_game` and
+`sensor.lefidelity_steam_friends`, unless those IDs are already in use. UI sensors
+use the account device name as their name prefix. The default service name
+`Steam Tracker` keeps the IDs listed above without adding another `steam`.
+
+Existing registered entity IDs and user-assigned names are preserved. Renaming
+a service or installing this update does not rewrite IDs used by dashboards and
+automations. To adopt the new ID pattern for an existing account, edit each
+entity's ID in Home Assistant and update its dashboard and automation references.
 
 ### Sensors and Attributes
 
