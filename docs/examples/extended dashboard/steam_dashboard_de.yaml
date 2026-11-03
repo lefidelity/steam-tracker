@@ -354,7 +354,43 @@ views:
                     {% set pile = state_attr('sensor.steam_tracker_playtime','pile_of_shame_count') or 0 %}{% set total = state_attr('sensor.steam_tracker_playtime','game_count') or 1 %}{{ pile }} ({{ ((pile / total) * 100) | round(0) }}%)
                   </td>
                 </tr>
+                {% if state_attr('sensor.steam_tracker_playtime', 'played_percentage') is not none %}
+                <tr>
+                  <td>Spielquote</td>
+                  <td>{{ state_attr('sensor.steam_tracker_playtime', 'played_percentage') | round(1) }} %</td>
+                </tr>
+                {% endif %}
+                {% if state_attr('sensor.steam_tracker_playtime', 'unplayed_game_count') is not none %}
+                <tr>
+                  <td>Ungespielte Spiele</td>
+                  <td>{{ state_attr('sensor.steam_tracker_playtime', 'unplayed_game_count') }}</td>
+                </tr>
+                {% endif %}
+                {% if state_attr('sensor.steam_tracker_playtime', 'top_5_playtime_percentage') is not none %}
+                <tr>
+                  <td>Top-5-Anteil</td>
+                  <td>{{ state_attr('sensor.steam_tracker_playtime', 'top_5_playtime_percentage') | round(1) }} %</td>
+                </tr>
+                {% endif %}
               </table>
+
+              {% set distribution = state_attr('sensor.steam_tracker_playtime', 'playtime_distribution') %}
+              {% if distribution is mapping %}
+
+              **Spielzeit-Verteilung**
+
+              {% set total = state_attr('sensor.steam_tracker_playtime', 'game_count') | int(0) %}
+              <table>
+              {% for key, label in [('unplayed', 'Ungespielt'), ('under_1_hour', 'Gespielt unter 1 h'), ('1_to_10_hours', '1–&lt;10 h'), ('10_to_50_hours', '10–&lt;50 h'), ('50_hours_or_more', '≥50 h')] %}
+              {% set count = distribution.get(key, 0) | int(0) %}
+              {% set filled = ((count / (total or 1)) * 12) | round(0) | int %}
+                <tr>
+                  <td>{{ label }}</td>
+                  <td><code>{{ '█' * filled }}{{ '░' * (12 - filled) }}</code> {{ count }}</td>
+                </tr>
+              {% endfor %}
+              </table>
+              {% endif %}
 
               {% else %}
 

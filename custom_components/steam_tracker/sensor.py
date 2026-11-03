@@ -131,13 +131,50 @@ def _player_achievements(response: requests.Response) -> dict[str, int] | None:
 def _schema_achievements(response: requests.Response) -> set[str]:
     """Read a valid game schema, including games with no achievements."""
     data = _response_data(response, "game")
-    stats = data.get("availableGameStats")
+    stats = data.get("availableGameStats", {})
     if not isinstance(stats, dict):
         raise ValueError("Steam achievement schema is unavailable")
     achievements = (
         _response_list(stats, "achievements") if "achievements" in stats else []
     )
     return _achievement_names(achievements, "name")
+
+
+def _library_statistics(games: list[dict]) -> dict:
+    """Calculate library usage from exact lifetime minutes already fetched."""
+    distribution = {
+        "unplayed": 0,
+        "under_1_hour": 0,
+        "1_to_10_hours": 0,
+        "10_to_50_hours": 0,
+        "50_hours_or_more": 0,
+    }
+    unplayed_games = []
+    for game in games:
+        minutes = game.get("playtime_forever")
+        if type(minutes) is not int or minutes < 0:
+            raise ValueError("Missing or invalid Steam playtime minutes")
+        if minutes == 0:
+            bucket = "unplayed"
+            unplayed_games.append({"appid": game["appid"], "name": game.get("name")})
+        elif minutes < 60:
+            bucket = "under_1_hour"
+        elif minutes < 600:
+            bucket = "1_to_10_hours"
+        elif minutes < 3000:
+            bucket = "10_to_50_hours"
+        else:
+            bucket = "50_hours_or_more"
+        distribution[bucket] += 1
+
+    played_count = len(games) - len(unplayed_games)
+    return {
+        "played_game_count": played_count,
+        "unplayed_game_count": len(unplayed_games),
+        "unplayed_games": sorted(unplayed_games, key=lambda game: game.get("name") or ""),
+        "played_percentage": round(played_count / len(games) * 100, 1) if games else 0,
+        "playtime_distribution": distribution,
+    }
 
 
 def _create_entities(
@@ -423,6 +460,7 @@ class SteamPlaytimeSensor(SteamBaseSensor):
             response = requests.get(API_OWNED_GAMES, params=params, timeout=15)
             games = _response_list(_response_data(response), "games", "game_count")
             _validate_achievement_games(games)
+            library_stats = _library_statistics(games)
             if not games:
                 self._state = 0
                 self._attrs = {
@@ -433,6 +471,8 @@ class SteamPlaytimeSensor(SteamBaseSensor):
                     "top_5_playtime_hours": 0,
                     "playtime_by_gameid": {},
                     "pile_of_shame_count": 0,
+                    "top_5_playtime_percentage": 0,
+                    **library_stats,
                 }
                 self._attr_available = True
                 return
@@ -466,7 +506,8 @@ class SteamPlaytimeSensor(SteamBaseSensor):
             total_hours = round(total_minutes / 60, 1)
             
             # top 5 hours
-            top_hours = round(sum(g.get("playtime_forever", 0) for g in top_games) / 60, 1)
+            top_minutes = sum(g["playtime_forever"] for g in top_games)
+            top_hours = round(top_minutes / 60, 1)
             
             playtime_by_gameid = {
                 str(g["appid"]): round(g.get("playtime_forever", 0) / 60, 1)
@@ -507,7 +548,11 @@ class SteamPlaytimeSensor(SteamBaseSensor):
                 "total_playtime_hours": total_hours,
                 "top_5_playtime_hours": top_hours,
                 "playtime_by_gameid": playtime_by_gameid,
-                "pile_of_shame_count": len(pile_of_shame)
+                "pile_of_shame_count": len(pile_of_shame),
+                "top_5_playtime_percentage": (
+                    round(top_minutes / total_minutes * 100, 1) if total_minutes else 0
+                ),
+                **library_stats,
             }
             self._attr_available = True
 

@@ -1,11 +1,48 @@
 # Changelog
 
+## 0.7.1 - 2026-11-03
+
+### Changes
+
+- Accept successful empty achievement schemas for games without statistics,
+  preventing those games from making Global Stats or Recent Achievements
+  unavailable or leaving top-five achievement fields unknown.
+- Extend the playtime sensor with played and unplayed game counts, a sorted
+  unplayed-games list, played percentage, top-five playtime percentage, and
+  five mutually exclusive playtime groups.
+- Calculate library metrics from the exact lifetime minutes already fetched;
+  short sessions remain played even when rounded hours display zero. Missing
+  or invalid minutes make the sensor unavailable instead of inventing zeroes.
+- Update the German and English library card/dashboard examples, attribute
+  documentation, and companion-card preview. No additional Steam API calls,
+  sensor renaming, or unique-ID changes are introduced.
+
+### Updating from 0.7.0
+
+- Update the integration and restart Home Assistant. The initial sensor refresh
+  provides the new attributes without waiting for the next scheduled update.
+- Update Steam Tracker Card separately to 0.7.2 for the new library tiles and
+  distribution bars, then reload the browser. The YAML examples can also be
+  used independently. Existing card configurations remain valid.
+- Minimum supported Home Assistant version remains 2025.10.0.
+
+### Validation
+
+- Python syntax, integration/HACS JSON, and Git whitespace checks.
+- 18 regression tests with Home Assistant Core 2025.10.0 and mocked Steam HTTP:
+  achievement schemas, library aggregation, exact minute boundaries, empty and
+  invalid data, recovery, request counts, and DE/EN YAML template rendering.
+- Companion card: JavaScript syntax, 13 logic tests, and browser checks for the
+  new statistics, older sensors, empty data, all layouts, languages, and mobile.
+- No authenticated Steam requests were made. Live Home Assistant frontend
+  behavior and HACS installation remain to be verified.
+
 ## 0.7.0 - 2026-11-03
 
 ### Changes
 
 - Name newly created account sensors after their service, for example
-  `sensor.lefidelity_steam_friends`. UI entities use the account device name as
+  `sensor.yourusername_steam_friends`. UI entities use the account device name as
   their prefix. The default `Steam Tracker` naming remains unchanged.
 - Preserve registered entity IDs, unique IDs, and user-assigned names when
   updating or renaming a service.

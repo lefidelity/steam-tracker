@@ -213,9 +213,9 @@ Home Assistant slugifies the integration name. With the default `Steam Tracker` 
 - `sensor.steam_tracker_global_stats`
 - `sensor.steam_tracker_friends`
 
-For a new service named `lefidelity`, entity IDs include both the account name
-and Steam, for example `sensor.lefidelity_steam_game` and
-`sensor.lefidelity_steam_friends`, unless those IDs are already in use. UI sensors
+For a new service named `yourusername`, entity IDs include both the account name
+and Steam, for example `sensor.yourusername_steam_game` and
+`sensor.yourusername_steam_friends`, unless those IDs are already in use. UI sensors
 use the account device name as their name prefix. The default service name
 `Steam Tracker` keeps the IDs listed above without adding another `steam`.
 
@@ -237,6 +237,33 @@ entity's ID in Home Assistant and update its dashboard and automation references
 ### `sensor.*_playtime`
 - **State**: total playtime across all games (hours)
 - **Attributes**: `top_5_games`, `all_games`, `game_count`, `total_playtime_hours`, `top_5_playtime_hours`, `playtime_by_gameid`, `pile_of_shame_count`
+
+Library usage attributes use the exact `playtime_forever` minutes from the same
+owned-games response and require no additional API requests:
+
+| Attribute | Meaning |
+|-----------|---------|
+| `played_game_count` | Games with at least one recorded minute |
+| `unplayed_game_count` | Games with exactly zero recorded minutes |
+| `unplayed_games` | Unplayed games, sorted by name, each with `appid` and `name` |
+| `played_percentage` | Played games as a percentage of the entire library |
+| `top_5_playtime_percentage` | Top-five lifetime minutes as a percentage of all lifetime minutes |
+| `playtime_distribution` | Game counts in the mutually exclusive groups below |
+
+Distribution keys are `unplayed` (0 minutes), `under_1_hour` (1–59 minutes),
+`1_to_10_hours` (60–599 minutes), `10_to_50_hours` (600–2999 minutes), and
+`50_hours_or_more` (3000 minutes or more). Their counts sum to `game_count`.
+Percentages are rounded to one decimal place; an empty library or zero total
+playtime yields `0%`. A game with one or two minutes is played even when its
+rounded hours display as `0.0`. Missing or invalid lifetime minutes make the
+playtime sensor unavailable instead of counting unknown playtime as unplayed.
+The existing `pile_of_shame_count` still includes all games under one hour,
+including unplayed games.
+
+The German and English library card and dashboard examples display the three
+new headline values and a bar for each distribution group. Each bar shows its
+share of the entire library, with the exact game count beside it. New sections
+are hidden when an older integration does not provide the attributes yet.
 
 ### `sensor.*_profile`
 - **State**: Steam player level
@@ -289,8 +316,10 @@ Achievement responses must report `success: true` and contain distinct achieveme
 identifiers with valid `achieved` values. The recent achievements sensor also
 checks the identifiers against the game's schema. Ambiguous "no stats" responses
 or a missing or empty achievement list require a valid schema confirming that
-the game has no achievements. A failed or missing schema is not treated as an
-empty schema.
+the game has no achievements. A successful schema response containing
+`{"game": {}}`, or a `game` object without `availableGameStats`, confirms that
+the game publishes no stats. A missing `game` object, invalid fields, and failed
+schema requests still make the affected achievement sensor unavailable.
 
 For confirmed games without achievements, unlocked and total counts are `0`,
 and the completion percentage is `null`. Games without achievements are excluded
@@ -355,6 +384,10 @@ Pull requests and issues are welcome. Please include:
 - Home Assistant version
 - Relevant logs (`custom_components.steam_tracker: debug`)
 - Expected versus actual behavior
+
+With Home Assistant and `requests` installed in a compatible Python environment,
+run the mocked sensor and library-example regression checks with
+`python -m unittest discover -s tests -v`. These checks send no Steam API requests.
 
 ---
 
