@@ -22,7 +22,14 @@ cards:
     show_label: false
     show_entity_picture: true
     entity_picture: |
-      [[[ return states['sensor.steam_tracker_status'].attributes.avatar; ]]]
+      [[[
+        try {
+          const url = new URL(states['sensor.steam_tracker_status']?.attributes?.avatar ?? "");
+          return url.protocol === "https:" ? url.href : "";
+        } catch {
+          return "";
+        }
+      ]]]
     styles:
       card:
         - border-radius: 50%
@@ -37,6 +44,8 @@ cards:
     cards:
       - type: markdown
         content: >-
+          {% if has_value('sensor.steam_tracker_profile') %}
+
           {% set status = states('sensor.steam_tracker_status') %} {% set ts =
           state_attr('sensor.steam_tracker_status','lastlogoff') | int(0) %} {% set
           dt = (as_timestamp(now()) - ts) | int %} {% set days = (dt // 86400)
@@ -50,65 +59,76 @@ cards:
 
           **Level {{ states('sensor.steam_tracker_profile') }}** <small> | XP: {{
           "{:,.0f}".format(xp).replace(",", ".") }}</small>
-        text_only: true
-      - type: custom:entity-progress-card-template
-        entity: sensor.steam_tracker_profile
-        name: Next Level
-        hide:
-          - icon
-        min_value: 0
-        max_value: 100
-        percent: >
-          {% set xp = state_attr('sensor.steam_tracker_profile', 'player_xp') |
-          int(0) %}
 
-          {% set need = state_attr('sensor.steam_tracker_profile',
-          'player_xp_needed_to_level_up') | int(0) %}
-
-          {% set minXP = state_attr('sensor.steam_tracker_profile',
-          'player_xp_needed_current_level') | int(0) %}
-
-          {% set total = (xp + need) - minXP %}
-
-          {% set progress = xp - minXP %}
-
-          {% if total > 0 %}
-            {{ ((progress / total) * 100) | round(0) }}
           {% else %}
-            0
+
+          Steam data currently unavailable.
+
           {% endif %}
-        secondary: >
-          {% set xp = state_attr('sensor.steam_tracker_profile', 'player_xp') |
-          int(0) %}
+        text_only: true
+      - type: conditional
+        conditions:
+          - condition: state
+            entity: sensor.steam_tracker_profile
+            state_not: unavailable
+          - condition: state
+            entity: sensor.steam_tracker_profile
+            state_not: unknown
+        card:
+          type: custom:entity-progress-card-template
+          entity: sensor.steam_tracker_profile
+          name: Next Level
+          hide:
+            - icon
+          min_value: 0
+          max_value: 100
+          percent: >
+            {% set xp = state_attr('sensor.steam_tracker_profile', 'player_xp') |
+            int(0) %}
 
-          {% set need = state_attr('sensor.steam_tracker_profile',
-          'player_xp_needed_to_level_up') | int(0) %}
+            {% set need = state_attr('sensor.steam_tracker_profile',
+            'player_xp_needed_to_level_up') | int(0) %}
 
-          {% set minXP = state_attr('sensor.steam_tracker_profile',
-          'player_xp_needed_current_level') | int(0) %}
+            {% set minXP = state_attr('sensor.steam_tracker_profile',
+            'player_xp_needed_current_level') | int(0) %}
 
-          {% set progress = xp - minXP %}
+            {% set total = (xp + need) - minXP %}
 
-          {% set span = (xp+(need))-minXP %}
+            {% set progress = xp - minXP %}
 
-          {{ progress }} / {{ span }} XP
-        bar_color: "#2196f3"
-        decimal: 0
-        card_mod:
-          class: flat
+            {% if total > 0 %}
+              {{ ((progress / total) * 100) | round(0) }}
+            {% else %}
+              0
+            {% endif %}
+          secondary: >
+            {% set xp = state_attr('sensor.steam_tracker_profile', 'player_xp') |
+            int(0) %}
+
+            {% set need = state_attr('sensor.steam_tracker_profile',
+            'player_xp_needed_to_level_up') | int(0) %}
+
+            {% set minXP = state_attr('sensor.steam_tracker_profile',
+            'player_xp_needed_current_level') | int(0) %}
+
+            {% set progress = xp - minXP %}
+
+            {% set span = (xp+(need))-minXP %}
+
+            {{ progress }} / {{ span }} XP
+          bar_color: "#2196f3"
+          decimal: 0
+          card_mod:
+            class: flat
       - type: markdown
         content: >-
+          {% if has_value('sensor.steam_tracker_status') %}
+
           {% set status = states('sensor.steam_tracker_status') %} {% set ts =
           state_attr('sensor.steam_tracker_status','lastlogoff') | int(0) %} {% set
           dt = (as_timestamp(now()) - ts) | int %} {% set days = (dt // 86400)
           %} {% set hours = (dt % 86400 // 3600) %} {% set minutes = (dt % 3600
           // 60) %}
-
-          {% set xp = state_attr('sensor.steam_tracker_profile','player_xp') | int
-          %} {% set to_up =
-          state_attr('sensor.steam_tracker_profile','player_xp_needed_to_level_up')
-          | int %} {% set end = xp + to_up %}
-
 
           Status: {{ status }}{% if status == "Offline" %}<small>{% if days > 0
           %}
@@ -121,6 +141,12 @@ cards:
             Just online
             {% endif %}
           {% endif %}</small>
+
+          {% else %}
+
+          Steam data currently unavailable.
+
+          {% endif %}
         text_only: true
 ```
 ---
@@ -134,6 +160,8 @@ YAML code:
 ```yaml
 type: markdown
 content: >-
+  {% if has_value('sensor.steam_tracker_game') %}
+
   &nbsp;
 
   # Current Game
@@ -144,10 +172,21 @@ content: >-
 
   {% else %}
 
-  ![Logo]({{ state_attr('sensor.steam_tracker_game','logo') }})
+  {% set logo = (state_attr('sensor.steam_tracker_game', 'logo') or '') | string | trim %}
+  {% if logo.startswith('https://') %}
+  <img src="{{ logo | e }}" alt="Logo">
+  {% endif %}
 
-  <small>Total playtime: {{
-  state_attr('sensor.steam_tracker_game','total_playtime_hours') or 0 }} h</small>
+  {% set playtime_hours = state_attr('sensor.steam_tracker_game', 'total_playtime_hours') %}
+  {% if playtime_hours is not none %}
+  <small>Total playtime: {{ playtime_hours }} h</small>
+  {% endif %}
+
+  {% endif %}
+
+  {% else %}
+
+  Steam data currently unavailable.
 
   {% endif %}
 text_only: true
@@ -185,14 +224,35 @@ styles:
 custom_fields:
   list: |
     [[[
+      const escapeHtml = value => String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+      const safeImageUrl = value => {
+        try {
+          const url = new URL(String(value ?? ""));
+          return url.protocol === "https:" ? escapeHtml(url.href) : "";
+        } catch {
+          return "";
+        }
+      };
+
       let recent = states['sensor.steam_tracker_recent'];
       let achiev = states['sensor.steam_tracker_recent_achievements'];
-      if (!recent || !recent.attributes || !recent.attributes.recent_games) {
+      if (
+        !recent || ["unknown", "unavailable"].includes(recent.state)
+        || !recent.attributes || !recent.attributes.recent_games
+      ) {
         return "<i>No data</i>";
       }
       let games = recent.attributes.recent_games.slice(0,3);
       let achievMap = {};
-      if (achiev && achiev.attributes && achiev.attributes.recent_achievements) {
+      if (
+        achiev && !["unknown", "unavailable"].includes(achiev.state)
+        && achiev.attributes && achiev.attributes.recent_achievements
+      ) {
         achiev.attributes.recent_achievements.forEach(a => {
           achievMap[a.appid] = a;
         });
@@ -204,15 +264,18 @@ custom_fields:
         // Achievements hinzufügen
         let achievText = "";
         let a = achievMap[g.appid];
-        if (a && a.total && a.unlocked !== null) {
-          achievText = `🏆 ${a.unlocked}/${a.total} (${Math.round(a.percent)}%)`;
+        if (
+          a && Number.isFinite(a.unlocked) && Number.isFinite(a.total)
+          && a.total > 0 && Number.isFinite(a.percent)
+        ) {
+          achievText = `🏆 ${escapeHtml(a.unlocked)}/${escapeHtml(a.total)} (${Math.round(a.percent)}%)`;
         }
 
         out += `
           <div style="display:flex;align-items:center;gap:10px;background:var(--ha-card-background,var(--card-background-color));padding:8px;border-radius:10px;width:100%;">
-            <img src="${g.logo}" style="max-width:40%;height:auto;border-radius:6px;flex-shrink:0;">
+            <img src="${safeImageUrl(g.logo)}" style="max-width:40%;height:auto;border-radius:6px;flex-shrink:0;">
             <div style="flex:1;min-width:0;white-space:normal;word-break:break-word;">
-              <div style="font-size:16px;font-weight:bold;">${g.name}</div>
+              <div style="font-size:16px;font-weight:bold;">${escapeHtml(g.name)}</div>
               <div style="font-size:13px;color:var(--secondary-text-color);">
                 ⏱ ${Math.round(g.playtime_2weeks_h)}h / ${Math.round(g.playtime_total_h)}h gesamt<br>
                 ${achievText}
@@ -235,6 +298,8 @@ YAML code:
 ```yaml
 type: markdown
 content: |
+  {% if has_value('sensor.steam_tracker_playtime') %}
+
   &nbsp;
   #  Library Statistics
   <table>
@@ -257,6 +322,12 @@ content: |
       </td>
     </tr>
   </table>
+
+  {% else %}
+
+  Steam data currently unavailable.
+
+  {% endif %}
 text_only: true
 ```
 ---
@@ -269,6 +340,8 @@ YAML code:
 ```yaml
 type: markdown
 content: |
+  {% if has_value('sensor.steam_tracker_global_stats') %}
+
   &nbsp;
   # Player Statistics
   <table>
@@ -297,6 +370,12 @@ content: |
       <td>{{ state_attr('sensor.steam_tracker_global_stats','card_badge_count') or 0 }}</td>
     </tr>
   </table>
+
+  {% else %}
+
+  Steam data currently unavailable.
+
+  {% endif %}
 text_only: true
 ```
 
@@ -330,8 +409,26 @@ styles:
 custom_fields:
   list: |
     [[[
+      const escapeHtml = value => String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+      const safeImageUrl = value => {
+        try {
+          const url = new URL(String(value ?? ""));
+          return url.protocol === "https:" ? escapeHtml(url.href) : "";
+        } catch {
+          return "";
+        }
+      };
+
       let s = states['sensor.steam_tracker_playtime'];
-      if (!s || !s.attributes || !s.attributes.top_5_games) {
+      if (
+        !s || ["unknown", "unavailable"].includes(s.state)
+        || !s.attributes || !s.attributes.top_5_games
+      ) {
         return "<i>No data</i>";
       }
       let games = s.attributes.top_5_games.slice(0,5);
@@ -339,15 +436,18 @@ custom_fields:
       games.forEach(g => {
         // Achievements-Text nur, wenn vorhanden
         let achievText = "";
-        if (g.achievements_total && g.achievements_unlocked !== null) {
-          achievText = `🏆 ${g.achievements_unlocked}/${g.achievements_total} (${Math.round(g.achievements_percent)}%)<br>`;
+        if (
+          Number.isFinite(g.achievements_unlocked) && Number.isFinite(g.achievements_total)
+          && g.achievements_total > 0 && Number.isFinite(g.achievements_percent)
+        ) {
+          achievText = `🏆 ${escapeHtml(g.achievements_unlocked)}/${escapeHtml(g.achievements_total)} (${Math.round(g.achievements_percent)}%)<br>`;
         }
 
         out += `
           <div style="display:flex;align-items:center;gap:10px;background:var(--ha-card-background,var(--card-background-color));padding:8px;border-radius:10px;width:100%;">
-            <img src="${g.logo}" style="max-width:40%;height:auto;border-radius:6px;flex-shrink:0;">
+            <img src="${safeImageUrl(g.logo)}" style="max-width:40%;height:auto;border-radius:6px;flex-shrink:0;">
             <div style="flex:1;min-width:0;white-space:normal;word-break:break-word;">
-              <div style="font-size:16px;font-weight:bold;">${g.name}</div>
+              <div style="font-size:16px;font-weight:bold;">${escapeHtml(g.name)}</div>
               <div style="font-size:13px;color:var(--secondary-text-color);">
                 ⏱ ${Math.round(g.hours)} h<br>
                 ${achievText}
@@ -389,6 +489,21 @@ styles:
 custom_fields:
   list: |
     [[[
+      const escapeHtml = value => String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+      const safeImageUrl = value => {
+        try {
+          const url = new URL(String(value ?? ""));
+          return url.protocol === "https:" ? escapeHtml(url.href) : "";
+        } catch {
+          return "";
+        }
+      };
+
       let s = states['sensor.steam_tracker_friends'];
       if (!s || !s.attributes || !s.attributes.friends) {
         return "<i>No friends found</i>";
@@ -407,14 +522,14 @@ custom_fields:
 
       let out = "<div style='display:flex;flex-direction:column;gap:10px;width:100%;'>";
       friends.forEach(f => {
-        let game = f.game ? `<br>🎮 ${f.game}` : "";
+        let game = f.game ? `<br>🎮 ${escapeHtml(f.game)}` : "";
         out += `
           <div style="display:flex;align-items:center;gap:12px;padding:8px;background:var(--ha-card-background,var(--card-background-color));border-radius:10px;width:100%;">
-            <img src="${f.avatar}" style="width:50px;height:50px;border-radius:50%;flex-shrink:0;">
+            <img src="${safeImageUrl(f.avatar)}" style="width:50px;height:50px;border-radius:50%;flex-shrink:0;">
             <div style="flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">
-              <div style="font-size:16px;font-weight:bold;">${f.personaname}</div>
+              <div style="font-size:16px;font-weight:bold;">${escapeHtml(f.personaname)}</div>
               <div style="font-size:13px;color:var(--secondary-text-color);">
-                ${f.status} ${game}
+                ${escapeHtml(f.status)} ${game}
               </div>
             </div>
           </div>`;
@@ -440,6 +555,10 @@ entities:
 columns:
   - name: Game
     data: all_games.name
+    modify: >-
+      String(x ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;")
+    sort_unmodified: true
     align: start
   - name: Hours
     data: all_games.hours

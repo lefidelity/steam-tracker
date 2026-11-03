@@ -56,7 +56,7 @@ You also must **set some privacy settings** to get access to some informationen 
 ### Steam Privacy Settings
 
 To allow the **Steam Tracker** integration to retrieve your profile information, friends list, and playtime statistics, certain parts of your Steam account must be set to **Public**.  
-If your profile or specific data fields are private, the Steam API will not return the required information — resulting in missing or empty sensors in Home Assistant.
+If your profile or specific data fields are private, the Steam API may not return the required information. Affected sensors report `unavailable` when their primary data cannot be retrieved.
 
 #### Required privacy settings
 
@@ -69,7 +69,7 @@ Make sure the following settings are set to **Public** in your Steam profile:
 | **Friends List** | Public | Required to show your Steam friends and their online status. |
 | **Inventory** *(optional)* | Public | Only needed if you want to track badges, cards, or inventory-based stats. |
 
-> ⚠️ **Note:** If your game details or friends list are private, the corresponding sensors will remain empty.
+> ⚠️ **Note:** Private or inaccessible data is not treated as an empty library or friends list. Affected sensors report `unavailable` until valid data is returned.
 
 #### How to change your Steam privacy settings
 
@@ -203,18 +203,75 @@ Renaming the integration (e.g., `My Steam Information`) produces matching entity
 
 ---
 
+## Availability
+
+Sensors start as `unavailable` until their first successful refresh. Failed primary
+requests, invalid responses, missing required data, and inaccessible lists make
+the affected sensor `unavailable`. Its previous value and attributes are cleared,
+and the next successful refresh restores availability automatically.
+
+Explicitly empty results remain valid: no current game or recent games is `none`,
+and an empty library or friends list is `0`. A missing games list is accepted as
+empty only when Steam explicitly returns a zero count. An empty response object
+alone cannot distinguish private data from an empty collection and is treated as
+unavailable. A profile level of `0` remains a valid level; the profile sensor also
+requires its XP fields to be present.
+
+Supplementary fields such as current-game playtime can be absent while the main
+sensor value remains available. Automations should check `has_value()` before
+using sensor values. The dashboard examples show an unavailable-data message
+instead of substituting zero for a failed primary refresh.
+
+Global stats and recent achievements are available only when every requested
+game has confirmed achievement data. A failed or invalid per-game response makes
+the whole sensor unavailable instead of publishing a partial total. This also
+applies when Steam exposes the library but does not expose a game's progress.
+The next complete refresh restores the sensor automatically.
+
+Achievement responses must report `success: true` and contain distinct achievement
+identifiers with valid `achieved` values. The recent achievements sensor also
+checks the identifiers against the game's schema. Ambiguous "no stats" responses
+or a missing or empty achievement list require a valid schema confirming that
+the game has no achievements. A failed or missing schema is not treated as an
+empty schema.
+
+For confirmed games without achievements, unlocked and total counts are `0`,
+and the completion percentage is `null`. Games without achievements are excluded
+from perfect-game counts and the average completion rate. Unknown achievement
+fields in the playtime sensor's `top_5_games` are `null`; its playtime state remains
+available. The example cards display percentages only when all progress values
+are known, including a genuine `0%` for games with achievements and none unlocked.
+
+Global stats and top-five games normally use one player-achievement request per
+game; schema requests are added only for ambiguous missing stats. Recent
+achievements keeps its existing player and schema requests per game.
+
 ## Update Intervals
 
-The update intervals can not be configured yet.
+Each enabled sensor refreshes once when added, then uses its own update timer:
 
-- Status: 1 minute
-- Game: 5 minutes
-- Recent games: 10 minutes
-- Playtime, profile, recent achievements: 3 hours
-- Global stats: 5 hours
-- Friends: 5 minutes
+| Sensor | Interval |
+|--------|----------|
+| Status | 1 minute |
+| Current game | 2 minutes |
+| Friends | 5 minutes |
+| Recent games | 10 minutes |
+| Playtime | 1 hour |
+| Recent achievements | 1 hour |
+| Profile | 6 hours |
+| Global stats | 24 hours |
 
-Each sensor defines its own `SCAN_INTERVAL`.
+Global stats scans achievements for every owned game, so it refreshes daily to
+limit API traffic. Its requests do not block updates of the other sensors.
+If a sensor is still updating when its next timer fires, no second API scan is
+started for that sensor. Timers are removed when an entity is disabled or the
+integration is unloaded.
+
+The intervals are fixed; the legacy YAML `scan_interval` setting does not override
+them. Disabling automatic polling in the integration's system options stops
+periodic updates, but the initial refresh still runs. Use
+`homeassistant.update_entity` to request an immediate refresh; an update already
+in progress is not restarted.
 
 ---
 

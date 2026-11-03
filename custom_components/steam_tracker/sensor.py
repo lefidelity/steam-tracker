@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import requests
 import voluptuous as vol
@@ -13,11 +13,15 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_API_KEY, CONF_NAME
 from homeassistant.core import HomeAssistant
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from .const import CONF_STEAM_ID, DEFAULT_NAME
 
 _LOGGER = logging.getLogger(__name__)
+
+# Slow library scans must not delay status updates.
+PARALLEL_UPDATES = 0
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
@@ -28,6 +32,111 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 )
 
 API_URL = "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/"
+
+
+def _log_api_error(message: str, error: Exception) -> None:
+    """Log an API failure without exposing request URLs or credentials."""
+    error_type = type(error).__name__
+    if isinstance(error, requests.RequestException) and error.response is not None:
+        _LOGGER.error(
+            "%s (%s, HTTP %s)", message, error_type, error.response.status_code
+        )
+    else:
+        _LOGGER.error("%s (%s)", message, error_type)
+
+
+def _response_data(response: requests.Response, key: str = "response") -> dict:
+    """Read a successful Steam response without substituting missing data."""
+    response.raise_for_status()
+    payload = response.json()
+    if not isinstance(payload, dict) or not isinstance(payload.get(key), dict):
+        raise ValueError("Missing or invalid Steam response")
+    data = payload[key]
+    if data.get("success") is False or data.get("error"):
+        raise ValueError("Steam response indicates a failure")
+    return data
+
+
+def _response_list(data: dict, key: str, count_key: str | None = None) -> list[dict]:
+    """Distinguish an explicitly empty list from unavailable list data."""
+    count = data.get(count_key) if count_key is not None else None
+    if count is not None and (type(count) is not int or count < 0):
+        raise ValueError("Invalid Steam result count")
+    items = data.get(key, [] if count == 0 else None)
+    if not isinstance(items, list) or not all(isinstance(item, dict) for item in items):
+        raise ValueError("Missing or invalid Steam list data")
+    if count is not None and (count < len(items) or (count > 0 and not items)):
+        raise ValueError("Incomplete Steam list data")
+    return items
+
+
+def _validate_achievement_games(games: list[dict]) -> None:
+    """Require distinct, valid app IDs before fetching achievement data."""
+    appids = [game.get("appid") for game in games]
+    if any(type(appid) is not int or appid <= 0 for appid in appids):
+        raise ValueError("Missing or invalid Steam app ID")
+    if len(set(appids)) != len(appids):
+        raise ValueError("Duplicate Steam app IDs")
+
+
+def _achievement_names(achievements: list[dict], key: str) -> set[str]:
+    """Validate achievement identifiers without counting duplicate records."""
+    names = [achievement.get(key) for achievement in achievements]
+    if any(not isinstance(name, str) or not name.strip() for name in names):
+        raise ValueError("Missing or invalid Steam achievement identifier")
+    if len(set(names)) != len(names):
+        raise ValueError("Duplicate Steam achievement identifiers")
+    return set(names)
+
+
+def _player_achievements(response: requests.Response) -> dict[str, int] | None:
+    """Read confirmed progress, or require a schema for ambiguous missing stats."""
+    if response.status_code not in (200, 400):
+        response.raise_for_status()
+        raise ValueError("Unexpected Steam achievement response status")
+    payload = response.json()
+    if not isinstance(payload, dict) or not isinstance(
+        payload.get("playerstats"), dict
+    ):
+        raise ValueError("Missing or invalid Steam player stats")
+    data = payload["playerstats"]
+    if (
+        data.get("success") is False
+        and data.get("error") == "Requested app has no stats"
+        and data.get("achievements") in (None, [])
+    ):
+        return None
+    response.raise_for_status()
+    if data.get("success") is not True or data.get("error"):
+        raise ValueError("Steam player achievements are unavailable")
+    if "achievements" not in data:
+        return None
+    achievements = _response_list(data, "achievements")
+    if not achievements:
+        return None
+    _achievement_names(achievements, "apiname")
+    if any(
+        type(achievement.get("achieved")) is not int
+        or achievement["achieved"] not in (0, 1)
+        for achievement in achievements
+    ):
+        raise ValueError("Missing or invalid Steam achievement progress")
+    return {
+        achievement["apiname"]: achievement["achieved"]
+        for achievement in achievements
+    }
+
+
+def _schema_achievements(response: requests.Response) -> set[str]:
+    """Read a valid game schema, including games with no achievements."""
+    data = _response_data(response, "game")
+    stats = data.get("availableGameStats")
+    if not isinstance(stats, dict):
+        raise ValueError("Steam achievement schema is unavailable")
+    achievements = (
+        _response_list(stats, "achievements") if "achievements" in stats else []
+    )
+    return _achievement_names(achievements, "name")
 
 
 def _create_entities(api_key: str, steam_id: str, name: str) -> list["SteamBaseSensor"]:
@@ -75,15 +184,56 @@ class SteamBaseSensor(SensorEntity):
     """Base class for Steam Tracker sensors."""
 
     sensor_type = "base"
+    update_interval = timedelta(minutes=5)
 
     def __init__(self, api_key: str, steam_id: str, name: str) -> None:
         self._api_key = api_key
         self._steam_id = steam_id
         self._attr_name = name
-        self._attr_should_poll = True
+        self._attr_should_poll = False
+        self._attr_available = False
         self._attr_unique_id = f"{steam_id}_{self.sensor_type}"
         self._state = None
         self._attrs = {}
+
+    async def async_added_to_hass(self) -> None:
+        """Schedule an initial refresh and independent periodic updates."""
+        await super().async_added_to_hass()
+        entry = self.platform.config_entry
+        if entry is None:
+            initial_refresh = self.hass.async_create_background_task(
+                self._async_refresh(),
+                f"{self.entity_id} initial update",
+                eager_start=False,
+            )
+        else:
+            initial_refresh = entry.async_create_background_task(
+                self.hass,
+                self._async_refresh(),
+                f"{self.entity_id} initial update",
+                eager_start=False,
+            )
+        self.async_on_remove(initial_refresh.cancel)
+
+        if entry is not None and entry.pref_disable_polling:
+            return
+
+        self.async_on_remove(
+            async_track_time_interval(
+                self.hass,
+                self._async_refresh,
+                self.update_interval,
+                cancel_on_shutdown=True,
+            )
+        )
+
+    async def _async_refresh(self, _now: datetime | None = None) -> None:
+        """Refresh through Home Assistant's executor and per-entity update guard."""
+        if self.hass is None:
+            return
+        await self.async_device_update()
+        if self.hass is not None:
+            self.async_write_ha_state()
 
     @property
     def native_value(self):
@@ -93,25 +243,56 @@ class SteamBaseSensor(SensorEntity):
     def extra_state_attributes(self):
         return self._attrs
 
+    def _set_unavailable(self) -> None:
+        """Discard stale values after a failed primary data refresh."""
+        self._attr_available = False
+        self._state = None
+        self._attrs = {}
+
+    def _achievement_progress(
+        self, appid: int, *, verify_schema: bool = False
+    ) -> tuple[int, int]:
+        """Fetch validated counts without substituting zero for unknown progress."""
+        params = {"key": self._api_key, "steamid": self._steam_id, "appid": appid}
+        response = requests.get(API_ACHIEVEMENTS, params=params, timeout=10)
+        achievements = _player_achievements(response)
+        if verify_schema or achievements is None:
+            schema_response = requests.get(
+                API_SCHEMA, params={"key": self._api_key, "appid": appid}, timeout=10
+            )
+            names = _schema_achievements(schema_response)
+            if achievements is None:
+                if names:
+                    raise ValueError("Steam player achievement progress is unavailable")
+                return 0, 0
+            if set(achievements) != names:
+                raise ValueError("Incomplete Steam player achievement data")
+        return sum(achievements.values()), len(achievements)
+
     def update(self):
         """Fetch data from Steam API."""
         try:
             params = {"key": self._api_key, "steamids": self._steam_id}
             response = requests.get(API_URL, params=params, timeout=10)
-            response.raise_for_status()
-            data = response.json()["response"]["players"][0]
-            self.parse_data(data)
+            players = _response_list(_response_data(response), "players")
+            if not players:
+                raise ValueError("Steam player data is unavailable")
+            self.parse_data(players[0])
+            self._attr_available = True
         except Exception as e:
-            _LOGGER.error("Error fetching data from Steam: %s", e)
+            _log_api_error("Error fetching data from Steam", e)
+            self._set_unavailable()
 
 
 class SteamStatusSensor(SteamBaseSensor):
     """Shows online status of the player."""
 
     sensor_type = "status"
-    SCAN_INTERVAL = timedelta(minutes=1)
+    update_interval = timedelta(minutes=1)
     
     def parse_data(self, data):
+        if type(data.get("personastate")) is not int:
+            raise ValueError("Steam player status is unavailable")
         state_map = {
             0: "Offline",
             1: "Online",
@@ -121,7 +302,7 @@ class SteamStatusSensor(SteamBaseSensor):
             5: "Looking to trade",
             6: "Looking to play",
         }
-        self._state = state_map.get(data.get("personastate", 0), "Unknown")
+        self._state = state_map.get(data["personastate"], "Unknown")
         self._attrs = {
             "personaname": data.get("personaname"),
             "profileurl": data.get("profileurl"),
@@ -134,14 +315,22 @@ class SteamGameSensor(SteamBaseSensor):
     """Shows current game being played."""
 
     sensor_type = "game"
-    SCAN_INTERVAL = timedelta(minutes=5)
+    update_interval = timedelta(minutes=2)
     
     def parse_data(self, data):
         current_game = data.get("gameextrainfo")
         if not current_game:
+            if (
+                data.get("communityvisibilitystate") not in (None, 3)
+                or type(data.get("personastate")) is not int
+            ):
+                raise ValueError("Steam current game data is unavailable")
             self._state = "none"
             self._attrs = {}
             return
+
+        if not data.get("gameid"):
+            raise ValueError("Steam current game ID is unavailable")
     
         current_game_id = str(data.get("gameid"))
     
@@ -163,15 +352,14 @@ class SteamGameSensor(SteamBaseSensor):
                 "include_played_free_games": True,
             }
             resp = requests.get(API_OWNED_GAMES, params=params, timeout=10)
-            resp.raise_for_status()
-            games = resp.json().get("response", {}).get("games", [])
+            games = _response_list(_response_data(resp), "games", "game_count")
             for g in games:
                 if str(g.get("appid")) == current_game_id:
                     hours = round(g.get("playtime_forever", 0) / 60, 1)
                     self._attrs["total_playtime_hours"] = hours
                     break
         except Exception as e:
-            _LOGGER.error("Error fetching playtime for game %s: %s", current_game_id, e)
+            _log_api_error("Error fetching playtime for current game", e)
 
 
 API_OWNED_GAMES = "https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/"
@@ -180,7 +368,7 @@ class SteamPlaytimeSensor(SteamBaseSensor):
     """Shows total playtime and top 5 games."""
 
     sensor_type = "playtime"
-    SCAN_INTERVAL = timedelta(hours=3)
+    update_interval = timedelta(hours=1)
 
     def update(self):
         """Fetch owned games and playtime data from Steam API."""
@@ -192,13 +380,20 @@ class SteamPlaytimeSensor(SteamBaseSensor):
                 "include_played_free_games": True
             }
             response = requests.get(API_OWNED_GAMES, params=params, timeout=15)
-            response.raise_for_status()
-            data = response.json()["response"]
-
-            games = data.get("games", [])
+            games = _response_list(_response_data(response), "games", "game_count")
+            _validate_achievement_games(games)
             if not games:
                 self._state = 0
-                self._attrs = {"top_5_games": []}
+                self._attrs = {
+                    "top_5_games": [],
+                    "all_games": [],
+                    "game_count": 0,
+                    "total_playtime_hours": 0,
+                    "top_5_playtime_hours": 0,
+                    "playtime_by_gameid": {},
+                    "pile_of_shame_count": 0,
+                }
+                self._attr_available = True
                 return
 
             # overall playtime in hours
@@ -243,26 +438,14 @@ class SteamPlaytimeSensor(SteamBaseSensor):
                 name = g.get("name")
                 hours = round(g.get("playtime_forever", 0) / 60, 1)
             
-                # Default Werte
                 unlocked, total, percent = None, None, None
             
                 try:
-                    # Achievements des Users abrufen
-                    user_params = {
-                        "key": self._api_key,
-                        "steamid": self._steam_id,
-                        "appid": appid,
-                    }
-                    user_resp = requests.get(API_ACHIEVEMENTS, params=user_params, timeout=10)
-                    if user_resp.ok:
-                        user_data = user_resp.json().get("playerstats", {})
-                        achs = user_data.get("achievements", [])
-                        unlocked = sum(1 for a in achs if a.get("achieved") == 1)
-                        total = len(achs)
-                        if total > 0:
-                            percent = round((unlocked / total) * 100, 1)
-                except Exception:
-                    pass
+                    unlocked, total = self._achievement_progress(appid)
+                    if total > 0:
+                        percent = round((unlocked / total) * 100, 1)
+                except Exception as e:
+                    _log_api_error("Error fetching top-game achievement data", e)
             
                 top_games_list.append({
                     "appid": appid,
@@ -285,11 +468,11 @@ class SteamPlaytimeSensor(SteamBaseSensor):
                 "playtime_by_gameid": playtime_by_gameid,
                 "pile_of_shame_count": len(pile_of_shame)
             }
+            self._attr_available = True
 
         except Exception as e:
-            _LOGGER.error("Error fetching owned games from Steam: %s", e)
-            self._state = None
-            self._attrs = {}
+            _log_api_error("Error fetching owned games from Steam", e)
+            self._set_unavailable()
 
 API_BADGES = "https://api.steampowered.com/IPlayerService/GetBadges/v1/"
 
@@ -297,24 +480,34 @@ class SteamProfileSensor(SteamBaseSensor):
     """Shows profile info like level and XP."""
 
     sensor_type = "profile"
-    SCAN_INTERVAL = timedelta(hours=3)
+    update_interval = timedelta(hours=6)
     def update(self):
         try:
             params = {"key": self._api_key, "steamid": self._steam_id}
             response = requests.get(API_BADGES, params=params, timeout=10)
-            response.raise_for_status()
-            data = response.json().get("response", {})
+            data = _response_data(response)
+            profile_fields = (
+                "player_level",
+                "player_xp",
+                "player_xp_needed_to_level_up",
+                "player_xp_needed_current_level",
+            )
+            if any(
+                type(data.get(field)) is not int or data[field] < 0
+                for field in profile_fields
+            ):
+                raise ValueError("Steam profile level or XP data is unavailable")
 
-            self._state = data.get("player_level", 0)
+            self._state = data["player_level"]
             self._attrs = {
                 "player_xp": data.get("player_xp"),
                 "player_xp_needed_to_level_up": data.get("player_xp_needed_to_level_up"),
                 "player_xp_needed_current_level": data.get("player_xp_needed_current_level"),
             }
+            self._attr_available = True
         except Exception as e:
-            _LOGGER.error("Error fetching profile data from Steam: %s", e)
-            self._state = None
-            self._attrs = {}
+            _log_api_error("Error fetching profile data from Steam", e)
+            self._set_unavailable()
 
 API_RECENT_GAMES = "https://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v1/"
 
@@ -322,7 +515,7 @@ class SteamRecentGamesSensor(SteamBaseSensor):
     """Shows recently played games."""
 
     sensor_type = "recent_games"
-    SCAN_INTERVAL = timedelta(minutes=10)
+    update_interval = timedelta(minutes=10)
     
     def update(self):
         try:
@@ -332,18 +525,18 @@ class SteamRecentGamesSensor(SteamBaseSensor):
                 "count": 5,  # nur die letzten 5 Spiele
             }
             response = requests.get(API_RECENT_GAMES, params=params, timeout=10)
-            response.raise_for_status()
-            data = response.json().get("response", {})
+            data = _response_data(response)
 
-            games = data.get("games", [])
+            games = _response_list(data, "games", "total_count")
             if not games:
                 self._state = "none"
-                self._attrs = {"recent_games": []}
+                self._attrs = {"recent_games": [], "game_count": 0}
+                self._attr_available = True
                 return
 
             # Erstes Spiel als State
             first = games[0]
-            self._state = first.get("name", "unknown")
+            self._state = first.get("name") or "unknown"
 
             # Spieleliste aufbereiten
             recent_games = [
@@ -360,13 +553,13 @@ class SteamRecentGamesSensor(SteamBaseSensor):
 
             self._attrs = {
                 "recent_games": recent_games,
-                "game_count": data.get("total_count", 0),
+                "game_count": data.get("total_count", len(games)),
             }
+            self._attr_available = True
 
         except Exception as e:
-            _LOGGER.error("Error fetching recent games from Steam: %s", e)
-            self._state = None
-            self._attrs = {}
+            _log_api_error("Error fetching recent games from Steam", e)
+            self._set_unavailable()
 
 API_ACHIEVEMENTS = "https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v1/"
 API_SCHEMA = "https://api.steampowered.com/ISteamUserStats/GetSchemaForGame/v2/"
@@ -376,7 +569,7 @@ class SteamRecentAchievementsSensor(SteamBaseSensor):
     """Shows achievement progress for recently played games."""
 
     sensor_type = "recent_achievements"
-    SCAN_INTERVAL = timedelta(hours=3)
+    update_interval = timedelta(hours=1)
 
     def update(self):
         try:
@@ -386,39 +579,18 @@ class SteamRecentAchievementsSensor(SteamBaseSensor):
                 "count": 5,  # only check the last 5 games
             }
             response = requests.get(API_RECENT_GAMES, params=params, timeout=15)
-            response.raise_for_status()
-            games = response.json().get("response", {}).get("games", [])
+            games = _response_list(_response_data(response), "games", "total_count")
+            _validate_achievement_games(games)
 
             achievements_data = []
             for g in games:
                 appid = g.get("appid")
                 name = g.get("name")
 
-                # get achievements for user
-                user_params = {
-                    "key": self._api_key,
-                    "steamid": self._steam_id,
-                    "appid": appid,
-                }
-                try:
-                    user_resp = requests.get(API_ACHIEVEMENTS, params=user_params, timeout=10)
-                    user_resp.raise_for_status()
-                    user_data = user_resp.json().get("playerstats", {})
-                    unlocked = sum(1 for a in user_data.get("achievements", []) if a.get("achieved") == 1)
-                except Exception:
-                    unlocked = None
-
-                # get scheme (overall)
-                try:
-                    schema_resp = requests.get(API_SCHEMA, params={"key": self._api_key, "appid": appid}, timeout=10)
-                    schema_resp.raise_for_status()
-                    schema_data = schema_resp.json().get("game", {})
-                    total = len(schema_data.get("availableGameStats", {}).get("achievements", []))
-                except Exception:
-                    total = None
+                unlocked, total = self._achievement_progress(appid, verify_schema=True)
 
                 percent = None
-                if unlocked is not None and total and total > 0:
+                if total > 0:
                     percent = round((unlocked / total) * 100, 1)
 
                 achievements_data.append({
@@ -432,11 +604,11 @@ class SteamRecentAchievementsSensor(SteamBaseSensor):
 
             self._state = len(achievements_data)  # Anzahl Spiele mit Daten
             self._attrs = {"recent_achievements": achievements_data}
+            self._attr_available = True
 
         except Exception as e:
-            _LOGGER.error("Error fetching recent achievements: %s", e)
-            self._state = None
-            self._attrs = {}
+            _log_api_error("Error fetching recent achievements", e)
+            self._set_unavailable()
 
 
 API_BADGES = "https://api.steampowered.com/IPlayerService/GetBadges/v1/"
@@ -445,7 +617,7 @@ class SteamGlobalStatsSensor(SteamBaseSensor):
     """Shows global achievement stats (expensive: iterates over all games)."""
 
     sensor_type = "global_stats"
-    SCAN_INTERVAL = timedelta(hours=5)
+    update_interval = timedelta(hours=24)
     
     def update(self):
         try:
@@ -457,8 +629,8 @@ class SteamGlobalStatsSensor(SteamBaseSensor):
                 "include_played_free_games": True,
             }
             resp = requests.get(API_OWNED_GAMES, params=params, timeout=30)
-            resp.raise_for_status()
-            games = resp.json().get("response", {}).get("games", [])
+            games = _response_list(_response_data(resp), "games", "game_count")
+            _validate_achievement_games(games)
 
             total_unlocked = 0
             total_possible = 0
@@ -467,41 +639,21 @@ class SteamGlobalStatsSensor(SteamBaseSensor):
 
             for g in games:
                 appid = g.get("appid")
-                if not appid:
-                    continue
-
-                # 2) Player Achievements
-                try:
-                    params = {
-                        "key": self._api_key,
-                        "steamid": self._steam_id,
-                        "appid": appid,
-                    }
-                    ach_resp = requests.get(API_ACHIEVEMENTS, params=params, timeout=10)
-                    if ach_resp.status_code != 200:
-                        continue
-                    ach_data = ach_resp.json().get("playerstats", {})
-                    achs = ach_data.get("achievements", [])
-                    unlocked = sum(1 for a in achs if a.get("achieved") == 1)
-                    total = len(achs)
-
-                    if total > 0:
-                        total_unlocked += unlocked
-                        total_possible += total
-                        if unlocked == total:
-                            perfect_games += 1
-                        completion_rates.append(unlocked / total * 100)
-
-                except Exception:
-                    continue
+                unlocked, total = self._achievement_progress(appid)
+                if total > 0:
+                    total_unlocked += unlocked
+                    total_possible += total
+                    if unlocked == total:
+                        perfect_games += 1
+                    completion_rates.append(unlocked / total * 100)
 
             avg_completion = round(sum(completion_rates) / len(completion_rates), 1) if completion_rates else 0
 
             # 3) Badges abrufen
             badge_params = {"key": self._api_key, "steamid": self._steam_id}
             badge_resp = requests.get(API_BADGES, params=badge_params, timeout=10)
-            badge_data = badge_resp.json().get("response", {})
-            badges = badge_data.get("badges", [])
+            badge_data = _response_data(badge_resp)
+            badges = _response_list(badge_data, "badges")
             badge_count = len(badges)
             card_badge_count = len([b for b in badges if "appid" in b])
 
@@ -515,11 +667,11 @@ class SteamGlobalStatsSensor(SteamBaseSensor):
                 "badge_count": badge_count,
                 "card_badge_count": card_badge_count,
             }
+            self._attr_available = True
 
         except Exception as e:
-            _LOGGER.error("Error fetching global stats: %s", e)
-            self._state = None
-            self._attrs = {}
+            _log_api_error("Error fetching global stats", e)
+            self._set_unavailable()
 
 API_FRIENDS = "https://api.steampowered.com/ISteamUser/GetFriendList/v1/"
 API_SUMMARIES = "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/"
@@ -528,7 +680,7 @@ class SteamFriendsSensor(SteamBaseSensor):
     """Shows Steam friends and their current status."""
 
     sensor_type = "friends"
-    SCAN_INTERVAL = timedelta(minutes=5)
+    update_interval = timedelta(minutes=5)
 
     def update(self):
         try:
@@ -539,12 +691,12 @@ class SteamFriendsSensor(SteamBaseSensor):
                 "relationship": "friend"
             }
             resp = requests.get(API_FRIENDS, params=params, timeout=15)
-            resp.raise_for_status()
-            friends_data = resp.json().get("friendslist", {}).get("friends", [])
+            friends_data = _response_list(_response_data(resp, "friendslist"), "friends")
 
             if not friends_data:
                 self._state = 0
                 self._attrs = {"friends": []}
+                self._attr_available = True
                 return
 
             friend_ids = [f["steamid"] for f in friends_data]
@@ -555,8 +707,9 @@ class SteamFriendsSensor(SteamBaseSensor):
                 batch_ids = friend_ids[i:i+100]
                 params = {"key": self._api_key, "steamids": ",".join(batch_ids)}
                 info_resp = requests.get(API_SUMMARIES, params=params, timeout=15)
-                info_resp.raise_for_status()
-                players = info_resp.json().get("response", {}).get("players", [])
+                players = _response_list(_response_data(info_resp), "players")
+                if {player.get("steamid") for player in players} != set(batch_ids):
+                    raise ValueError("Incomplete Steam friend summaries")
                 for p in players:
                     state_map = {
                         0: "Offline",
@@ -578,8 +731,8 @@ class SteamFriendsSensor(SteamBaseSensor):
 
             self._state = len(friends_info)
             self._attrs = {"friends": friends_info}
+            self._attr_available = True
 
         except Exception as e:
-            _LOGGER.error("Error fetching friends list: %s", e)
-            self._state = None
-            self._attrs = {}
+            _log_api_error("Error fetching friends list", e)
+            self._set_unavailable()
