@@ -13,10 +13,15 @@ below their status in detailed and compact layouts when `lastlogoff` is availabl
 Online players with a current game see “Playing: <game name>” there instead,
 using the same account's existing current-game sensor without extra Steam requests.
 
-![Steam Tracker Card with fictional demo accounts and games](images/steam_tracker_card_preview.png)
+![All eight Steam Tracker Cards in Steam blue, full layout, English, with fictional demo data](images/steam_tracker_card_preview.png)
 
-Layout previews: [Compact](images/steam_tracker_card_compact.png) ·
-[Single line](images/steam_tracker_card_single_line.png).
+[Visual guide: all card views and variants](steam_tracker_card_visual_guide.md).
+Compare [Steam blue / English](steam_tracker_card_visual_guide/steam-en.md),
+[Home Assistant theme / English](steam_tracker_card_visual_guide/theme-en.md),
+[Steam blue / German](steam_tracker_card_visual_guide/steam-de.md), and
+[Home Assistant theme / German](steam_tracker_card_visual_guide/theme-de.md).
+Every view has Full, Compact, and Single line images. The Home Assistant theme
+uses a light reference theme; the card inherits your own theme colors at runtime.
 
 The card reads the existing sensors and attributes. It does not make Steam API
 requests, need a Steam API key, or require button-card, bar-card, or card-mod.
@@ -73,6 +78,13 @@ Titel bleibt gespeichert. Offline-Profile zeigen in Ausführlich und Kompakt die
 letzte Onlinezeit unter dem Status, sofern `lastlogoff` verfügbar ist.
 Bei online verbundenen Spielern mit laufendem Spiel steht dort stattdessen
 „Spielt: <Spielname>“, aus dem vorhandenen Spielsensor desselben Kontos.
+
+Die [Bild-Dokumentation](steam_tracker_card_visual_guide.md) zeigt alle acht
+Ansichten in Steam-Blau und Home-Assistant-Theme, Deutsch und Englisch sowie
+Voll, Kompakt und Einzeilig: insgesamt 96 Einzelbilder. Direkt zu den deutschen
+Vergleichen für [Steam-Blau](steam_tracker_card_visual_guide/steam-de.md) und
+[Home-Assistant-Theme](steam_tracker_card_visual_guide/theme-de.md).
+Die Gesamtübersicht darüber zeigt Steam-Blau, Voll und Englisch.
 
 Die Bibliothek-Statistik ergänzt Spielquote, ungespielte Spiele, Top-5-Anteil und
 eine Spielzeit-Verteilung in fünf Gruppen, sobald die aktualisierte Integration

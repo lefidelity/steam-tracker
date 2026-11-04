@@ -185,6 +185,11 @@ Assistant instance are still pending. See the [card overview](docs/steam_tracker
 for the preview, compatibility, and repository naming details. Existing dashboard
 examples remain usable independently.
 
+[Visual card documentation](docs/steam_tracker_card_visual_guide.md) compares all
+eight views in Steam blue and a light Home Assistant reference theme, in English
+and German, with Full, Compact, and Single line layouts. It includes 96 individual
+images and a Steam blue / Full / English overview.
+
 [![Open Steam Tracker Card in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=lefidelity&repository=steam-tracker-card&category=plugin)
 
 To get started quickly, the repository ships with two ready-to-use Lovelace dashboards and some Lovelace cards ready to use (if you use "Steam Tracker" as the integrations friendly name).
