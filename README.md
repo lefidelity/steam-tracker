@@ -170,8 +170,13 @@ sensor:
 
 A separate companion project, [**Steam Tracker Card**](https://github.com/lefidelity/steam-tracker-card),
 provides a visual editor for users configuring their dashboard.
-Its first version provides profile, current game, and recently played views,
-with account selection, German/English, and compact or detailed layouts.
+Steam Tracker Card 0.8.0 provides profile, current game, recently played,
+library statistics, player statistics, top-five games, friends, and full-library
+views, with account selection, German/English, and detailed, compact, or
+single-line layouts. The editor can independently hide the title and upper-right
+account label. Profile details show the last-online time while offline or the
+current game while online. Integration 0.9.0 supplies the existing sensor data;
+install and update the card separately.
 It reads this integration's existing sensors and needs no additional Steam API
 credentials or custom-card dependencies.
 

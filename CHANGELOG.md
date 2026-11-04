@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.9.0 - 2026-11-04
+
+### Changes
+
+- Update the companion-card documentation and fictional previews for Steam
+  Tracker Card 0.8.0: independent title/account-label visibility, offline
+  last-online time, online current-game details, view icons, separated game
+  rows, and revised library-statistics presentation.
+- Document all eight card views, the three layouts, and current compatibility
+  using release versions.
+- Bump the integration release to 0.9.0. Sensor behavior, attributes, update
+  intervals, configuration, and API request counts are unchanged from 0.7.1.
+
+### Updating from 0.7.1
+
+- Update the integration and restart Home Assistant. No sensor or dashboard
+  migration is required.
+- Update Steam Tracker Card separately to 0.8.0 and reload the browser. For a
+  manual card installation use `/local/steam-tracker-card.js?v=0.8.0` to refresh
+  the cache. Card UI improvements are supplied by that separate frontend asset.
+- Minimum supported Home Assistant version remains 2025.10.0.
+
+### Validation
+
+- Python syntax, integration/HACS JSON validation, and Git whitespace checks.
+- 18 regression tests on Python 3.13 with Home Assistant Core 2025.10.0 and
+  mocked Steam HTTP, including achievement scans, library minute boundaries,
+  recovery, request counts, and DE/EN template rendering.
+- Companion card: JavaScript syntax, 14 logic tests, and browser checks for
+  the updated UI, both languages, all layouts, account isolation, and mobile.
+- No authenticated Steam requests were made. Live Home Assistant frontend
+  behavior and HACS installation remain to be verified.
+
 ## 0.7.1 - 2026-11-03
 
 ### Changes
