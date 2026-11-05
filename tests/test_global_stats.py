@@ -2,7 +2,7 @@
 
 import json
 import unittest
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 import requests
 
@@ -102,6 +102,7 @@ class GlobalStatsTests(unittest.TestCase):
                     "avg_completion_rate": 100.0,
                     "badge_count": 1,
                     "card_badge_count": 0,
+                    "last_successful_update": ANY,
                 })
                 self.assertEqual(self.requests, [
                     (API_OWNED_GAMES, None), (API_ACHIEVEMENTS, 1),

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import requests
 import voluptuous as vol
@@ -11,12 +11,18 @@ import voluptuous as vol
 from homeassistant.components.sensor import PLATFORM_SCHEMA, SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_API_KEY, CONF_NAME
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
+from .api import (
+    API_PLAYER_SUMMARIES,
+    SteamAuthError,
+    SteamPlayerSummaryCache,
+    fetch_player_summary,
+)
 from .const import CONF_STEAM_ID, DEFAULT_NAME, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -32,7 +38,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     }
 )
 
-API_URL = "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/"
+API_URL = API_PLAYER_SUMMARIES
 
 
 def _log_api_error(message: str, error: Exception) -> None:
@@ -185,12 +191,15 @@ def _create_entities(
     prefix = "" if use_device_name else f"{base_name} "
     if base_name != DEFAULT_NAME:
         prefix += "Steam "
+    player_summary_cache = SteamPlayerSummaryCache(api_key, steam_id)
     entities = [
         SteamStatusSensor(
-            api_key, steam_id, f"{prefix}Status", account_name=base_name
+            api_key, steam_id, f"{prefix}Status", account_name=base_name,
+            player_summary_cache=player_summary_cache,
         ),
         SteamGameSensor(
-            api_key, steam_id, f"{prefix}Game", account_name=base_name
+            api_key, steam_id, f"{prefix}Game", account_name=base_name,
+            player_summary_cache=player_summary_cache,
         ),
         SteamPlaytimeSensor(
             api_key, steam_id, f"{prefix}Playtime", account_name=base_name
@@ -257,9 +266,11 @@ class SteamBaseSensor(SensorEntity):
         name: str,
         *,
         account_name: str | None = None,
+        player_summary_cache: SteamPlayerSummaryCache | None = None,
     ) -> None:
         self._api_key = api_key
         self._steam_id = steam_id
+        self._player_summary_cache = player_summary_cache
         self._attr_name = name
         self._attr_should_poll = False
         self._attr_available = False
@@ -327,6 +338,13 @@ class SteamBaseSensor(SensorEntity):
         self._state = None
         self._attrs = {}
 
+    def _mark_successful_update(self, fetched_at: str | None = None) -> None:
+        """Use the source fetch time, or completion of this validated update."""
+        self._attrs["last_successful_update"] = (
+            fetched_at if fetched_at is not None else datetime.now(timezone.utc).isoformat()
+        )
+        self._attr_available = True
+
     def _achievement_progress(
         self, appid: int, *, verify_schema: bool = False
     ) -> tuple[int, int]:
@@ -350,16 +368,29 @@ class SteamBaseSensor(SensorEntity):
     def update(self):
         """Fetch data from Steam API."""
         try:
-            params = {"key": self._api_key, "steamids": self._steam_id}
-            response = requests.get(API_URL, params=params, timeout=10)
-            players = _response_list(_response_data(response), "players")
-            if not players:
-                raise ValueError("Steam player data is unavailable")
-            self.parse_data(players[0])
-            self._attr_available = True
+            fetched_at = None
+            if self._player_summary_cache is None:
+                player = fetch_player_summary(self._api_key, self._steam_id)
+            else:
+                summary = self._player_summary_cache.get()
+                player = summary.player
+                fetched_at = summary.fetched_at
+            self.parse_data(player)
+            self._mark_successful_update(fetched_at)
+        except SteamAuthError as error:
+            _log_api_error("Steam denied player-summary access", error)
+            self._set_unavailable()
+            if self.hass is not None:
+                self.hass.loop.call_soon_threadsafe(self._async_start_reauth)
         except Exception as e:
             _log_api_error("Error fetching data from Steam", e)
             self._set_unavailable()
+
+    @callback
+    def _async_start_reauth(self) -> None:
+        """Request reauthentication on the event loop for UI accounts only."""
+        if self.hass is not None and (entry := self.platform.config_entry) is not None:
+            entry.async_start_reauth(self.hass)
 
 
 class SteamStatusSensor(SteamBaseSensor):
@@ -474,7 +505,7 @@ class SteamPlaytimeSensor(SteamBaseSensor):
                     "top_5_playtime_percentage": 0,
                     **library_stats,
                 }
-                self._attr_available = True
+                self._mark_successful_update()
                 return
 
             # overall playtime in hours
@@ -491,7 +522,9 @@ class SteamPlaytimeSensor(SteamBaseSensor):
             # a list of all games with playtime in hours
             all_games = [
                 {
+                    "appid": g["appid"],
                     "name": g.get("name"),
+                    "playtime_minutes": g["playtime_forever"],
                     "hours": round(g.get("playtime_forever", 0) / 60, 1)
                 }
                 for g in sorted(games, key=lambda x: x.get("name", ""))
@@ -554,7 +587,7 @@ class SteamPlaytimeSensor(SteamBaseSensor):
                 ),
                 **library_stats,
             }
-            self._attr_available = True
+            self._mark_successful_update()
 
         except Exception as e:
             _log_api_error("Error fetching owned games from Steam", e)
@@ -590,7 +623,7 @@ class SteamProfileSensor(SteamBaseSensor):
                 "player_xp_needed_to_level_up": data.get("player_xp_needed_to_level_up"),
                 "player_xp_needed_current_level": data.get("player_xp_needed_current_level"),
             }
-            self._attr_available = True
+            self._mark_successful_update()
         except Exception as e:
             _log_api_error("Error fetching profile data from Steam", e)
             self._set_unavailable()
@@ -617,7 +650,7 @@ class SteamRecentGamesSensor(SteamBaseSensor):
             if not games:
                 self._state = "none"
                 self._attrs = {"recent_games": [], "game_count": 0}
-                self._attr_available = True
+                self._mark_successful_update()
                 return
 
             # Erstes Spiel als State
@@ -641,7 +674,7 @@ class SteamRecentGamesSensor(SteamBaseSensor):
                 "recent_games": recent_games,
                 "game_count": data.get("total_count", len(games)),
             }
-            self._attr_available = True
+            self._mark_successful_update()
 
         except Exception as e:
             _log_api_error("Error fetching recent games from Steam", e)
@@ -690,7 +723,7 @@ class SteamRecentAchievementsSensor(SteamBaseSensor):
 
             self._state = len(achievements_data)  # Anzahl Spiele mit Daten
             self._attrs = {"recent_achievements": achievements_data}
-            self._attr_available = True
+            self._mark_successful_update()
 
         except Exception as e:
             _log_api_error("Error fetching recent achievements", e)
@@ -753,7 +786,7 @@ class SteamGlobalStatsSensor(SteamBaseSensor):
                 "badge_count": badge_count,
                 "card_badge_count": card_badge_count,
             }
-            self._attr_available = True
+            self._mark_successful_update()
 
         except Exception as e:
             _log_api_error("Error fetching global stats", e)
@@ -782,7 +815,7 @@ class SteamFriendsSensor(SteamBaseSensor):
             if not friends_data:
                 self._state = 0
                 self._attrs = {"friends": []}
-                self._attr_available = True
+                self._mark_successful_update()
                 return
 
             friend_ids = [f["steamid"] for f in friends_data]
@@ -817,7 +850,7 @@ class SteamFriendsSensor(SteamBaseSensor):
 
             self._state = len(friends_info)
             self._attrs = {"friends": friends_info}
-            self._attr_available = True
+            self._mark_successful_update()
 
         except Exception as e:
             _log_api_error("Error fetching friends list", e)

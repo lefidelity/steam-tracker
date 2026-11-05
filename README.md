@@ -122,6 +122,16 @@ Everything can be configured in the UI:
 2. Search for **Steam Tracker**.
 3. Provide your **Steam User ID**, **Steam Web API key**, and a friendly **account name**.
 
+In version 0.9.5, enter the 17-digit **SteamID64**. Before
+saving, the integration makes one player-summary request to check that Steam
+accepts the key and returns the requested account. This check runs in Home
+Assistant's executor; a private games library does not prevent setup.
+
+The form distinguishes rejected access (HTTP 401/403), connection failures or
+timeouts, an account that Steam did not return, and an unreadable response.
+A timeout does not mean that the key is invalid. No entry is created until the
+check succeeds. Duplicate accounts are rejected without changing their keys.
+
 > ⚠️ **Note:** If you want to use the examples out of the box use the default "Steam Tracker" as the friendly name.
 
 The integration creates sensors automatically with names based on the friendly name you choose. All examples will assume "Steam Tracker" as friendly name.
@@ -150,7 +160,25 @@ entity IDs shown on the corresponding account device. With the name
 Renaming an existing service does not automatically rename its registered entity
 IDs; check the entity registry before editing dashboard references.
 
-Already using `configuration.yaml`? Leave your existing entry in place for the first restart so Home Assistant can import it into the UI, then remove the YAML.
+### Change or restore an API key
+
+Open **Settings -> Devices & Services -> Steam Tracker**, then open the menu of
+the affected account entry and select **Reconfigure**. Enter the replacement
+key in the password field. Steam must confirm access to the same account before
+the key is saved. Home Assistant reloads that account entry; its name, device,
+entity IDs, options, and other accounts are preserved. A failed check leaves the
+previous key unchanged.
+
+If a status or current-game player-summary request receives HTTP 401/403,
+Home Assistant requests reauthentication for that account. Follow the prompt
+and enter a working key. Connection failures, timeouts, and missing private
+game or achievement data do not trigger this prompt. Existing refresh intervals
+continue to apply, and these checks add no periodic Steam requests.
+
+Validation, key changes, and reauthentication are available from integration
+0.9.5. The key-change menu applies to UI entries. Legacy YAML does
+not automatically initiate a UI import; it continues to read the key from YAML
+or its referenced secret.
 
 ### Legacy YAML (optional)
 
@@ -170,12 +198,12 @@ sensor:
 
 A separate companion project, [**Steam Tracker Card**](https://github.com/lefidelity/steam-tracker-card),
 provides a visual editor for users configuring their dashboard.
-Steam Tracker Card 0.8.0 provides profile, current game, recently played,
+Steam Tracker Card 0.9.5 provides profile, current game, recently played,
 library statistics, player statistics, top-five games, friends, and full-library
 views, with account selection, German/English, and detailed, compact, or
 single-line layouts. The editor can independently hide the title and upper-right
 account label. Profile details show the last-online time while offline or the
-current game while online. Integration 0.9.0 supplies the existing sensor data;
+current game while online. Integration 0.9.5 supplies the sensor data and new library/freshness fields;
 install and update the card separately.
 It reads this integration's existing sensors and needs no additional Steam API
 credentials or custom-card dependencies.
@@ -236,6 +264,23 @@ entity's ID in Home Assistant and update its dashboard and automation references
 
 ### Sensors and Attributes
 
+From integration 0.9.5, all eight sensors include
+`last_successful_update`: an ISO 8601 UTC timestamp set only after a successful,
+validated update finishes. A new successful fetch advances it even when values
+stay unchanged. Status and current game use the actual player-summary fetch
+time; a shared cache hit keeps that original timestamp. Supplementary current-game
+playtime does not make an older summary appear freshly fetched.
+Confirmed empty results count as successful updates. Failed updates clear it
+together with the unavailable sensor's data; a partial global achievement scan
+does not publish a timestamp. Supplementary data failures still follow each
+sensor's existing availability rules. No extra Steam requests are made.
+
+Steam Tracker Card 0.9.5 can show this time with the editor's
+**Show data freshness** checkbox (`show_data_status: true`, off by default).
+For combined views it uses the oldest successful update of the displayed
+sources. Missing timestamps are hidden, with no fallback to Home Assistant's
+`last_changed` or `last_updated`. See the [card documentation](docs/steam_tracker_card.md).
+
 ### `sensor.*_status`
 - **State**: `Offline | Online | Busy | Away | Snooze | Looking to trade | Looking to play | Unknown`
 - **Attributes**: `personaname`, `profileurl`, `avatar`, `lastlogoff`
@@ -247,6 +292,11 @@ entity's ID in Home Assistant and update its dashboard and automation references
 ### `sensor.*_playtime`
 - **State**: total playtime across all games (hours)
 - **Attributes**: `top_5_games`, `all_games`, `game_count`, `total_playtime_hours`, `top_5_playtime_hours`, `playtime_by_gameid`, `pile_of_shame_count`
+
+Each `all_games` entry contains `appid`, `name`, exact lifetime
+`playtime_minutes`, and the existing rounded `hours`. Integration 0.9.5 adds
+IDs and minutes from the same owned-games response for companion-card links and
+filters. Earlier integrations provide only `name` and `hours` in these entries.
 
 Library usage attributes use the exact `playtime_forever` minutes from the same
 owned-games response and require no additional API requests:
@@ -368,6 +418,26 @@ them. Disabling automatic polling in the integration's system options stops
 periodic updates, but the initial refresh still runs. Use
 `homeassistant.update_entity` to request an immediate refresh; an update already
 in progress is not restarted.
+
+### Shared player-summary requests
+
+Status and current game share a **15-second, in-memory cache per account entry**.
+It also applies to legacy YAML account setups. Simultaneous updates join one
+in-progress player-summary request; a slow account does not block another.
+The lifetime starts when the request completes and uses a monotonic clock.
+Sensor intervals remain unchanged. Manual entity refreshes also reuse a summary
+that is still younger than 15 seconds.
+
+Only successful, readable summaries are reused. Failed requests and malformed
+responses are not kept, and expired data is never substituted after a failed
+fetch. A new attempt can retry immediately. Each sensor still validates its own
+required data and follows its existing availability and reauthentication rules.
+
+Cache hits keep the source's `last_successful_update` time. Reloading an account,
+including after a validated key change, creates a fresh cache. Setup, import,
+reconfiguration, and reauthentication checks always contact Steam directly.
+Owned games, achievements, badges, friends, and current-game supplementary
+playtime are outside this cache; global scans retain their completeness checks.
 
 ---
 

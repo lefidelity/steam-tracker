@@ -1,5 +1,60 @@
 # Changelog
 
+## 0.9.5 - 2026-11-05
+
+### Changes
+
+- Check new accounts and explicit imports against Steam using a 17-digit
+  SteamID64 and a password field. Distinguish access denied, connection/timeouts,
+  missing accounts, and unreadable responses. Private libraries do not block setup.
+- Add native API-key reconfiguration and reauthentication. Validate replacement
+  keys before saving, reload the same account entry, and preserve device/entity
+  IDs, names, options, and other accounts. Duplicate accounts cannot replace keys.
+- Request reauthentication only for HTTP 401/403 from the status/current-game
+  player-summary endpoint. Keep timeouts and private game/achievement failures
+  separate, and keep credentials and untrusted exception text out of errors/logs.
+- Add `appid` and exact lifetime `playtime_minutes` to `all_games`, preserving
+  rounded `hours`, existing states/attributes, and the owned-games request budget.
+  These fields support Steam Tracker Card 0.9.5 library filters and Steam links.
+- Add `last_successful_update` to all eight sensors. Record real successful
+  fetches, including unchanged values and confirmed empty results. Failed updates
+  clear stale data; incomplete global achievement scans never publish success.
+- Share status/current-game player summaries in a 15-second cache per account,
+  including legacy YAML setups. Concurrent readers share one request. Failed or
+  incomplete results are not cached, and expired data is never used after errors.
+  Account reloads/key changes start empty; credential-validation flows stay uncached.
+- Preserve the original summary fetch time on cache hits. Other endpoints and
+  supplementary current-game playtime remain outside the cache. Sensor intervals
+  and the Home Assistant minimum version (2025.10.0) are unchanged.
+- Update English/German configuration text, documentation, fictional previews,
+  library labels, and the optional data-freshness example.
+
+### Updating
+
+- Update the integration to 0.9.5 and restart Home Assistant. Existing account
+  entries, sensor IDs, dashboards, and automations remain usable.
+- Update Steam Tracker Card separately to 0.9.5 and reload the browser. Manual
+  card installations can use `/local/steam-tracker-card.js?v=0.9.5` for cache refresh.
+- Library range filters, full-library Steam links, and the data-freshness footer
+  require integration 0.9.5 data. Older sensors retain their supported card features.
+- Change a key through the account entry's **Reconfigure** menu. A failed check
+  leaves the old key unchanged. Legacy YAML still reads its key from YAML/secrets;
+  it does not automatically initiate UI import.
+- Manual status/current-game refreshes can reuse summaries younger than 15 seconds;
+  a cache hit keeps its original data-freshness time.
+
+### Validation
+
+- 50 integration/template/API/config-flow/cache tests passed on Python 3.13 with
+  Home Assistant Core 2025.10.0 and mocked Steam HTTP, including parallel readers,
+  exact cache expiry, account/key isolation, reload wiring, failures, and recovery.
+- Python syntax, integration/HACS JSON, documentation links, and Git whitespace checks.
+- Companion card: JavaScript syntax, 18 logic tests, and browser checks for both
+  languages, all views/layouts, filters/actions, editor, mobile, safe rendering,
+  successful-fetch timestamps, and timer/subscription cleanup.
+- No authenticated Steam requests were made. Live Home Assistant frontend behavior
+  and HACS installation compatibility remain to be tested.
+
 ## 0.9.0 - 2026-11-04
 
 ### Changes

@@ -89,6 +89,17 @@ class LibraryStatisticsTests(unittest.TestCase):
                 self.assertEqual(attrs["unplayed_game_count"], 1)
                 self.assertEqual(attrs["top_5_playtime_percentage"], 100)
 
+    def test_library_entries_keep_app_ids_and_exact_minutes(self):
+        attrs = self.refresh([0, 1, 2, 59, 60, 3000])
+        self.assertEqual(attrs["all_games"], [
+            {"appid": index, "name": f"Game {index:02}",
+             "playtime_minutes": minutes, "hours": round(minutes / 60, 1)}
+            for index, minutes in enumerate([0, 1, 2, 59, 60, 3000], 1)
+        ])
+        self.owned["games"].reverse()
+        self.sensor.update()
+        self.assertEqual(self.sensor.extra_state_attributes["all_games"], attrs["all_games"])
+
     def test_empty_library_has_empty_lists_and_zero_percentages(self):
         self.refresh([60])
         self.owned = {"game_count": 0}

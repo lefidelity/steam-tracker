@@ -13,6 +13,32 @@ below their status in detailed and compact layouts when `lastlogoff` is availabl
 Online players with a current game see “Playing: <game name>” there instead,
 using the same account's existing current-game sensor without extra Steam requests.
 
+In version 0.9.5, the full-library view adds played/unplayed
+and exact playtime-range filters, with default sorting and filtering in the editor.
+Game and friend names support configurable Steam links or sensor-detail actions;
+the default is no action. Full-library Steam links and playtime filters use the
+new `appid` and `playtime_minutes` fields in `all_games`, requiring the integration
+update to 0.9.5 alongside the card. Earlier integration versions lack these fields.
+Existing data still supports searching, sorting, and sensor-detail actions.
+
+Version 0.9.5 also adds **Show data freshness** in the editor
+(`show_data_status: true`, disabled by default) for every view and layout.
+It displays “Successfully updated 3 minutes ago” from the integration's new
+`last_successful_update` attribute, using the oldest timestamp when several
+sources contribute. The tooltip gives the absolute time. Missing, invalid,
+future, unknown, or unavailable sources hide the display; Home Assistant state
+timestamps are never substituted. The relative text updates locally each minute.
+The attribute requires integration 0.9.5 or newer; update both projects.
+The integration shares status/current-game summaries for up to 15 seconds per
+account. A cache hit preserves the actual summary fetch timestamp, so the
+footer does not claim a new fetch when data was reused.
+
+![Optional data freshness with fictional player statistics](images/steam_tracker_card_data_status.png)
+
+Library bars now label the inclusive final group **At least 50 h** / **ab 50 h**.
+Tooltips clarify **1 to under 10 hours** and **10 to under 50 hours**, with matching
+German text and accessible labels. The exact-minute boundaries are unchanged.
+
 ![All eight Steam Tracker Cards in Steam blue, full layout, English, with fictional demo data](images/steam_tracker_card_preview.png)
 
 [Visual guide: all card views and variants](steam_tracker_card_visual_guide.md).
@@ -44,7 +70,7 @@ contains English/German installation instructions, `dist/steam-tracker-card.js`,
 an interactive preview, and automated logic/browser checks. The GitHub repository
 is [lefidelity/steam-tracker-card](https://github.com/lefidelity/steam-tracker-card).
 HACS validation and tests in a real Home Assistant instance are still pending.
-The integration is released as 0.9.0 and the card as 0.8.0; install and update
+The integration and card are both released as 0.9.5; install and update
 them separately. Library additions require integration 0.7.1 or newer;
 profile details use existing status and current-game attributes.
 
@@ -79,6 +105,19 @@ letzte Onlinezeit unter dem Status, sofern `lastlogoff` verfügbar ist.
 Bei online verbundenen Spielern mit laufendem Spiel steht dort stattdessen
 „Spielt: <Spielname>“, aus dem vorhandenen Spielsensor desselben Kontos.
 
+Version 0.9.5 ergänzt die Spiele-Gesamtübersicht um Filter für
+gespielte und ungespielte Spiele sowie genaue Spielzeitbereiche. Standardfilter
+und Standardsortierung sind im Editor wählbar. Ein Klick auf Spiel- oder
+Freundesnamen kann Steam oder die zugehörigen Sensordetails öffnen; standardmäßig
+bleibt die Aktion deaktiviert. Die neuen Bibliotheksfilter und Steam-Links nutzen
+`appid` und `playtime_minutes` aus `all_games`; dafür muss auch die Integration
+auf 0.9.5 aktualisiert werden. Ältere Integrationen liefern diese Felder nicht. Suche, Sortierung und Sensordetails funktionieren auch mit älteren Daten.
+
+Optional lässt sich mit **Datenstand anzeigen** (`show_data_status: true`) in
+allen Ansichten der letzte erfolgreiche Abruf einblenden. Dafür ist Integration
+0.9.5 erforderlich. Cache-Treffer behalten den ursprünglichen Abrufzeitpunkt.
+Die letzte Spielzeitgruppe heißt **ab 50 h**; Tooltips erklären die genauen Grenzen.
+
 Die [Bild-Dokumentation](steam_tracker_card_visual_guide.md) zeigt alle acht
 Ansichten in Steam-Blau und Home-Assistant-Theme, Deutsch und Englisch sowie
 Voll, Kompakt und Einzeilig: insgesamt 96 Einzelbilder. Direkt zu den deutschen
@@ -104,6 +143,6 @@ echten Home-Assistant-Instanz stehen noch aus.
 Für beide Projekte wird kein `hacs-`-Präfix benötigt. Das Integrationsrepository
 heißt auf GitHub `lefidelity/steam-tracker`; Dokumentation, Manifest, HACS-Link
 und lokales Git-Remote verwenden diesen Namen. Die Integration erscheint als
-Version 0.9.0, die Karte als 0.8.0; beide werden separat installiert.
+Version 0.9.5, die Karte ebenfalls als 0.9.5; beide werden separat installiert.
 Die technische Domain bleibt
 `steam_tracker`; eine Änderung der Sensor-IDs ist für den Repository-Namen nicht nötig.

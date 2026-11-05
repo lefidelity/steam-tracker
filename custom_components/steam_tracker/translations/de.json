@@ -3,22 +3,45 @@
     "step": {
       "user": {
         "title": "Steam Tracker",
-        "description": "Füge ein Steam-Konto hinzu. Weitere Konten kannst du als separate Dienste in Steam Tracker hinzufügen. Wähle für jedes Konto einen eindeutigen Namen.",
+        "description": "Füge ein Steam-Konto mit seiner 17-stelligen SteamID64 hinzu. Steam prüft API-Key und Konto vor dem Speichern. Weitere Konten kannst du als separate Dienste mit eindeutigen Namen hinzufügen.",
         "data": {
           "steam_id": "Steam User ID",
           "api_key": "Steam Web-API-Key",
           "name": "Kontoname"
         }
+      },
+      "reconfigure": {
+        "title": "Steam-Web-API-Key ändern",
+        "description": "Gib einen neuen Steam-Web-API-Key für {name} ein. Der Key wird gespeichert, sobald Steam den Zugriff auf dieses Konto bestätigt.",
+        "data": {"api_key": "Neuer Steam-Web-API-Key"}
+      },
+      "reauth_confirm": {
+        "title": "Steam-Zugriff wiederherstellen",
+        "description": "Steam hat den Zugriff auf die Spielerübersicht für {name} verweigert. Gib einen funktionierenden Steam-Web-API-Key für dieses Konto ein.",
+        "data": {"api_key": "Steam-Web-API-Key"}
       }
     },
     "abort": {
       "already_configured": "Dieses Steam-Konto ist bereits eingerichtet.",
-      "missing_import_data": "In der importierten Konfiguration fehlen Steam User ID oder Web-API-Key."
+      "missing_import_data": "In der importierten Konfiguration fehlen Steam User ID oder Web-API-Key.",
+      "invalid_steam_id": "Gib eine gültige 17-stellige SteamID64 ein.",
+      "invalid_auth": "Steam hat den Web-API-Key abgelehnt oder den Zugriff verweigert. Prüfe den Key und die Steam-Zugriffsrechte.",
+      "cannot_connect": "Verbindung zu Steam fehlgeschlagen. Versuche es später erneut.",
+      "invalid_response": "Steam hat eine unlesbare oder widersprüchliche Antwort geliefert. Versuche es später erneut.",
+      "account_not_found": "Steam hat kein Konto zu dieser SteamID64 geliefert. Prüfe die ID.",
+      "unique_id_mismatch": "Das Steam-Konto stimmt nicht mit der bestehenden Konfiguration überein.",
+      "reauth_successful": "Der Steam-Zugriff wurde wiederhergestellt.",
+      "reconfigure_successful": "Der Steam-Web-API-Key wurde aktualisiert."
     },
     "error": {
       "steam_id_required": "Bitte gib eine Steam User ID an.",
       "api_key_required": "Bitte gib einen Steam Web-API-Key an.",
-      "missing_import_data": "In der importierten Konfiguration fehlen Steam User ID oder Web-API-Key."
+      "missing_import_data": "In der importierten Konfiguration fehlen Steam User ID oder Web-API-Key.",
+      "invalid_steam_id": "Gib eine gültige 17-stellige SteamID64 ein.",
+      "invalid_auth": "Steam hat den Web-API-Key abgelehnt oder den Zugriff verweigert. Prüfe den Key und die Steam-Zugriffsrechte.",
+      "cannot_connect": "Verbindung zu Steam fehlgeschlagen. Versuche es später erneut.",
+      "invalid_response": "Steam hat eine unlesbare oder widersprüchliche Antwort geliefert. Versuche es später erneut.",
+      "account_not_found": "Steam hat kein Konto zu dieser SteamID64 geliefert. Prüfe die ID."
     }
   }
 }

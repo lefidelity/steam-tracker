@@ -3,22 +3,45 @@
     "step": {
       "user": {
         "title": "Steam Tracker",
-        "description": "Add one Steam account. You can add more accounts as separate services in Steam Tracker. Choose a distinct name for each account.",
+        "description": "Add one Steam account using its 17-digit SteamID64. Steam verifies the API key and account before saving. Add more accounts as separate services and choose a distinct name for each.",
         "data": {
           "steam_id": "Steam User ID",
           "api_key": "Steam Web API key",
           "name": "Account name"
         }
+      },
+      "reconfigure": {
+        "title": "Change Steam Web API key",
+        "description": "Enter a new Steam Web API key for {name}. The key is saved after Steam confirms access to this account.",
+        "data": {"api_key": "New Steam Web API key"}
+      },
+      "reauth_confirm": {
+        "title": "Restore Steam access",
+        "description": "Steam denied player-summary access for {name}. Enter a working Steam Web API key for this account.",
+        "data": {"api_key": "Steam Web API key"}
       }
     },
     "abort": {
       "already_configured": "This Steam account is already configured.",
-      "missing_import_data": "The imported configuration is missing the Steam User ID or Web API key."
+      "missing_import_data": "The imported configuration is missing the Steam User ID or Web API key.",
+      "invalid_steam_id": "Enter a valid 17-digit SteamID64.",
+      "invalid_auth": "Steam rejected the Web API key or denied access. Check the key and Steam access permissions.",
+      "cannot_connect": "Could not connect to Steam. Try again later.",
+      "invalid_response": "Steam returned an unreadable or inconsistent response. Try again later.",
+      "account_not_found": "Steam returned no account for this SteamID64. Check the ID.",
+      "unique_id_mismatch": "The Steam account does not match the existing configuration.",
+      "reauth_successful": "Steam access was restored.",
+      "reconfigure_successful": "The Steam Web API key was updated."
     },
     "error": {
       "steam_id_required": "Please enter a Steam User ID.",
       "api_key_required": "Please enter a Steam Web API key.",
-      "missing_import_data": "The imported configuration is missing the Steam User ID or Web API key."
+      "missing_import_data": "The imported configuration is missing the Steam User ID or Web API key.",
+      "invalid_steam_id": "Enter a valid 17-digit SteamID64.",
+      "invalid_auth": "Steam rejected the Web API key or denied access. Check the key and Steam access permissions.",
+      "cannot_connect": "Could not connect to Steam. Try again later.",
+      "invalid_response": "Steam returned an unreadable or inconsistent response. Try again later.",
+      "account_not_found": "Steam returned no account for this SteamID64. Check the ID."
     }
   }
 }

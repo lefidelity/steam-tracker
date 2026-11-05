@@ -2,7 +2,7 @@
 
 [All appearances and languages](../steam_tracker_card_visual_guide.md)
 
-Screenshots of Steam Tracker Card 0.8.0 with fictional accounts and games.
+Screenshots of Steam Tracker Card 0.9.5 with fictional accounts and games.
 Click an image to open it at full resolution. Each column names the matching YAML layout.
 
 The Home Assistant theme appearance uses a light reference theme here.
