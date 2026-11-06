@@ -41,8 +41,27 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 API_URL = API_PLAYER_SUMMARIES
 
 
-def _log_api_error(message: str, error: Exception) -> None:
+class _SteamAchievementError(Exception):
+    """Keep trusted request context with an achievement failure."""
+
+    def __init__(self, error: Exception, operation: str, appid: int) -> None:
+        super().__init__("Steam achievement request failed")
+        self.error = error
+        self.operation = operation
+        self.appid = appid
+
+
+def _log_api_error(
+    message: str, error: Exception, *, operation: str | None = None
+) -> None:
     """Log an API failure without exposing request URLs or credentials."""
+    if isinstance(error, _SteamAchievementError):
+        operation = error.operation
+        if type(error.appid) is int and error.appid > 0:
+            operation = f"{operation}, appid={error.appid}"
+        error = error.error
+    if operation is not None:
+        message = f"{message} [{operation}]"
     error_type = type(error).__name__
     if isinstance(error, requests.RequestException) and error.response is not None:
         _LOGGER.error(
@@ -180,6 +199,64 @@ def _library_statistics(games: list[dict]) -> dict:
         "unplayed_games": sorted(unplayed_games, key=lambda game: game.get("name") or ""),
         "played_percentage": round(played_count / len(games) * 100, 1) if games else 0,
         "playtime_distribution": distribution,
+    }
+
+
+def _global_achievement_statistics(games: list[dict]) -> dict:
+    """Summarize a complete scan, using exact counts for completion groups."""
+    distribution = dict.fromkeys(
+        ("not_started", "under_25", "25_to_50", "50_to_75", "75_to_100", "complete"),
+        0,
+    )
+    achievement_games = [game for game in games if game["total"] > 0]
+    unlocked = sum(game["unlocked"] for game in achievement_games)
+    possible = sum(game["total"] for game in achievement_games)
+    for game in achievement_games:
+        done, total = game["unlocked"], game["total"]
+        if done == 0:
+            group = "not_started"
+        elif done == total:
+            group = "complete"
+        elif done * 4 < total:
+            group = "under_25"
+        elif done * 2 < total:
+            group = "25_to_50"
+        elif done * 4 < total * 3:
+            group = "50_to_75"
+        else:
+            group = "75_to_100"
+        distribution[group] += 1
+
+    candidates = sorted(
+        (game for game in achievement_games if game["unlocked"] < game["total"]),
+        key=lambda game: (
+            game["total"] - game["unlocked"],
+            -game["unlocked"] / game["total"],
+            (game.get("name") or "").casefold(),
+            game["appid"],
+        ),
+    )[:5]
+    return {
+        "achievements_total": unlocked,
+        "achievements_possible": possible,
+        "perfect_games": distribution["complete"],
+        "avg_completion_rate": round(
+            sum(game["unlocked"] / game["total"] * 100 for game in achievement_games)
+            / len(achievement_games), 1
+        ) if achievement_games else 0,
+        "achievements_remaining": possible - unlocked,
+        "overall_completion_rate": round(unlocked / possible * 100, 1) if possible else None,
+        "games_with_achievements": len(achievement_games),
+        "games_without_achievements": len(games) - len(achievement_games),
+        "completion_distribution": distribution,
+        "completion_candidates": [
+            {
+                **game,
+                "remaining": game["total"] - game["unlocked"],
+                "percent": round(game["unlocked"] / game["total"] * 100, 1),
+            }
+            for game in candidates
+        ],
     }
 
 
@@ -350,20 +427,30 @@ class SteamBaseSensor(SensorEntity):
     ) -> tuple[int, int]:
         """Fetch validated counts without substituting zero for unknown progress."""
         params = {"key": self._api_key, "steamid": self._steam_id, "appid": appid}
-        response = requests.get(API_ACHIEVEMENTS, params=params, timeout=10)
-        achievements = _player_achievements(response)
-        if verify_schema or achievements is None:
-            schema_response = requests.get(
-                API_SCHEMA, params={"key": self._api_key, "appid": appid}, timeout=10
-            )
-            names = _schema_achievements(schema_response)
-            if achievements is None:
-                if names:
-                    raise ValueError("Steam player achievement progress is unavailable")
-                return 0, 0
-            if set(achievements) != names:
-                raise ValueError("Incomplete Steam player achievement data")
-        return sum(achievements.values()), len(achievements)
+        operation = "GetPlayerAchievements/v1"
+        try:
+            response = requests.get(API_ACHIEVEMENTS, params=params, timeout=10)
+            # Confirm missing achievements through the schema even after HTTP 500.
+            player_stats_failed = response.status_code == 500
+            achievements = None if player_stats_failed else _player_achievements(response)
+            if verify_schema or achievements is None:
+                operation = "GetSchemaForGame/v2"
+                schema_response = requests.get(
+                    API_SCHEMA, params={"key": self._api_key, "appid": appid}, timeout=10
+                )
+                names = _schema_achievements(schema_response)
+                if achievements is None:
+                    if names:
+                        if player_stats_failed:
+                            operation = "GetPlayerAchievements/v1"
+                            response.raise_for_status()
+                        raise ValueError("Steam player achievement progress is unavailable")
+                    return 0, 0
+                if set(achievements) != names:
+                    raise ValueError("Incomplete Steam player achievement data")
+            return sum(achievements.values()), len(achievements)
+        except Exception as error:
+            raise _SteamAchievementError(error, operation, appid) from None
 
     def update(self):
         """Fetch data from Steam API."""
@@ -739,6 +826,7 @@ class SteamGlobalStatsSensor(SteamBaseSensor):
     update_interval = timedelta(hours=24)
     
     def update(self):
+        operation = "GetOwnedGames/v1"
         try:
             # 1) Alle Spiele abrufen
             params = {
@@ -751,24 +839,19 @@ class SteamGlobalStatsSensor(SteamBaseSensor):
             games = _response_list(_response_data(resp), "games", "game_count")
             _validate_achievement_games(games)
 
-            total_unlocked = 0
-            total_possible = 0
-            perfect_games = 0
-            completion_rates = []
-
+            achievement_games = []
             for g in games:
                 appid = g.get("appid")
+                operation = "GetPlayerAchievements/v1"
                 unlocked, total = self._achievement_progress(appid)
-                if total > 0:
-                    total_unlocked += unlocked
-                    total_possible += total
-                    if unlocked == total:
-                        perfect_games += 1
-                    completion_rates.append(unlocked / total * 100)
-
-            avg_completion = round(sum(completion_rates) / len(completion_rates), 1) if completion_rates else 0
+                achievement_games.append({
+                    "appid": appid, "name": g.get("name"),
+                    "unlocked": unlocked, "total": total,
+                })
+            achievement_stats = _global_achievement_statistics(achievement_games)
 
             # 3) Badges abrufen
+            operation = "GetBadges/v1"
             badge_params = {"key": self._api_key, "steamid": self._steam_id}
             badge_resp = requests.get(API_BADGES, params=badge_params, timeout=10)
             badge_data = _response_data(badge_resp)
@@ -777,19 +860,16 @@ class SteamGlobalStatsSensor(SteamBaseSensor):
             card_badge_count = len([b for b in badges if "appid" in b])
 
             # 4) Ergebnis
-            self._state = total_unlocked
+            self._state = achievement_stats["achievements_total"]
             self._attrs = {
-                "achievements_total": total_unlocked,
-                "achievements_possible": total_possible,
-                "perfect_games": perfect_games,
-                "avg_completion_rate": avg_completion,
+                **achievement_stats,
                 "badge_count": badge_count,
                 "card_badge_count": card_badge_count,
             }
             self._mark_successful_update()
 
         except Exception as e:
-            _log_api_error("Error fetching global stats", e)
+            _log_api_error("Error fetching global stats", e, operation=operation)
             self._set_unavailable()
 
 API_FRIENDS = "https://api.steampowered.com/ISteamUser/GetFriendList/v1/"
@@ -839,12 +919,17 @@ class SteamFriendsSensor(SteamBaseSensor):
                         5: "Looking to trade",
                         6: "Looking to play",
                     }
+                    persona_state = p.get("personastate")
+                    status = (
+                        state_map.get(persona_state, "Unknown")
+                        if type(persona_state) is int else "Unknown"
+                    )
                     friends_info.append({
                         "steamid": p.get("steamid"),
                         "personaname": p.get("personaname"),
                         "avatar": p.get("avatarfull"),
                         "profileurl": p.get("profileurl"),
-                        "status": state_map.get(p.get("personastate", 0), "Unknown"),
+                        "status": status,
                         "game": p.get("gameextrainfo"),
                     })
 

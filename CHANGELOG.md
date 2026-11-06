@@ -1,5 +1,70 @@
 # Changelog
 
+## 0.9.8 - 2026-11-06
+
+### Changes
+
+- Replace complete dashboard and third-party custom-card examples with central
+  English/German sensor references covering every sensor, state, nested field,
+  unit, calculation, availability rule, and fictional response example. Keep
+  small companion-card configurations for one view, accounts, and manual IDs.
+- Remove the retired dashboard screenshot and both template-only test modules.
+  Preserve sensor/API/config-flow/cache regression tests and keep the main README
+  focused on installation, setup, sensor overview, and documentation links.
+- Report missing, invalid, and unrecognized friend presence as `Unknown`; only
+  integer presence code 0 means `Offline`. Keep valid codes 0–6 unchanged and
+  retain readable friends in the list without adding requests. Failed or
+  incomplete summary requests still invalidate the friends sensor.
+- Add the overall achievement rate, remaining achievement count, exact completion
+  distribution, and up to five completion candidates to Global Stats using the
+  existing complete scan, with no additional Steam requests. Keep existing
+  fields, sensor IDs, states, and equal-weight average completion unchanged.
+- Count games without achievements separately. Exclude them and completed games
+  from candidates; preserve unknown progress as unavailable. Document attributes,
+  ranking, empty results, and companion-card compatibility in both languages.
+- Identify the failed API operation in global-stats error logs and include the
+  numeric app ID for achievement/schema failures. Preserve exception types and
+  HTTP status without logging request URLs, keys, account IDs, or untrusted text.
+- Check the game schema after an achievement HTTP 500. Continue only when a
+  successful, valid schema confirms no achievements; never skip unreadable
+  progress for a game with achievements. Apply the same rule to global stats,
+  recent achievements, and supplementary top-game achievement data.
+- Keep full-scan availability checks, successful-request counts, and update
+  intervals intact. A player-achievement HTTP 500 adds one schema request.
+- Document manual refresh and add mocked failure/recovery and log-privacy checks.
+
+### Updating
+
+- Update the integration to 0.9.8 and restart Home Assistant. Existing account
+  entries, entity IDs, sensor states, and supported attributes remain compatible.
+- Update Steam Tracker Card separately to 0.9.8 and reload the browser. Manual
+  installations can use `/local/steam-tracker-card.js?v=0.9.8` for cache refresh.
+- The additional player-statistics tiles, completion groups, and candidates
+  require integration 0.9.8 and card 0.9.8 together. Older sensors keep their
+  supported card display without fabricated replacement data.
+- Full dashboard and third-party card examples have been retired. Use the
+  English/German sensor references or the small companion-card configurations.
+- Friends with missing or invalid presence now show `Unknown` instead of a
+  fabricated offline status. No sensor or attribute key migration is needed.
+
+### Validation
+
+- 60 retained tests passed on Python 3.13 with Home Assistant Core 2025.10.0 and
+  mocked Steam HTTP, including exact completion groups, candidate ranking,
+  unchanged request counts, HTTP-500 schema confirmation,
+  failure/recovery, privacy, unchanged handling of other HTTP errors, and friend
+  presence validation (missing/invalid values, all valid codes, and recovery).
+- Remove seven template-rendering checks with the retired examples. Validate
+  the 16 matching JSON examples and all 46 sensor/list fields across both new
+  references, nine retained YAML blocks, and 95 local documentation links/anchors.
+- Companion card: JavaScript syntax, 21 logic tests, and Playwright checks passed
+  for both languages, three layouts, old/invalid/empty data, safe name actions,
+  mobile sizing, and existing views. Preview images use fictional data.
+- Python syntax, integration/HACS JSON, and Git whitespace checks passed.
+- No authenticated Steam requests were made by the checks. The user confirmed
+  the schema fallback on Home Assistant; new statistics still require live
+  installation verification of both updated projects.
+
 ## 0.9.5 - 2026-11-05
 
 ### Changes

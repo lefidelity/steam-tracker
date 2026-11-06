@@ -102,6 +102,15 @@ class GlobalStatsTests(unittest.TestCase):
                     "avg_completion_rate": 100.0,
                     "badge_count": 1,
                     "card_badge_count": 0,
+                    "achievements_remaining": 0,
+                    "overall_completion_rate": 100.0,
+                    "games_with_achievements": 1,
+                    "games_without_achievements": 1,
+                    "completion_distribution": {
+                        "not_started": 0, "under_25": 0, "25_to_50": 0,
+                        "50_to_75": 0, "75_to_100": 0, "complete": 1,
+                    },
+                    "completion_candidates": [],
                     "last_successful_update": ANY,
                 })
                 self.assertEqual(self.requests, [
@@ -138,12 +147,164 @@ class GlobalStatsTests(unittest.TestCase):
                 self.assertTrue(self.sensor.available)
 
     def test_private_progress_is_not_counted_as_zero(self):
-        self.progress = response({"playerstats": {"success": False}}, 403)
-        with self.assertLogs("custom_components.steam_tracker.sensor", "ERROR"):
-            self.sensor.update()
-        self.assertFalse(self.sensor.available)
-        self.assertEqual(self.sensor.extra_state_attributes, {})
-        self.assertNotIn((API_SCHEMA, 1), self.requests)
+        for status in (401, 403, 429, 502, 503, 504):
+            with self.subTest(status=status):
+                self.requests.clear()
+                self.progress = response({"playerstats": {"success": False}}, status)
+                with self.assertLogs("custom_components.steam_tracker.sensor", "ERROR"):
+                    self.sensor.update()
+                self.assertFalse(self.sensor.available)
+                self.assertEqual(self.sensor.extra_state_attributes, {})
+                self.assertNotIn((API_SCHEMA, 1), self.requests)
+
+    def test_http_failures_identify_stage_without_leaking_request_data(self):
+        cases = (
+            (API_OWNED_GAMES, None, "GetOwnedGames/v1", 1),
+            (API_ACHIEVEMENTS, 1, "GetPlayerAchievements/v1, appid=1", 3),
+            (API_SCHEMA, 2, "GetSchemaForGame/v2, appid=2", 4),
+            (API_BADGES, None, "GetBadges/v1", 5),
+        )
+        for endpoint, appid, context, request_count in cases:
+            with self.subTest(context=context):
+                self.sensor.update()
+                self.assertTrue(self.sensor.available)
+                self.requests.clear()
+
+                def fail_request(url, *, params, timeout):
+                    result = self.get(url, params=params, timeout=timeout)
+                    if url == endpoint and params.get("appid") == appid:
+                        result = response({}, 500)
+                        result.url = f"{url}?key=SECRET_KEY&steamid=PRIVATE_ACCOUNT"
+                        result.reason = "UNTRUSTED_SERVER_TEXT"
+                    return result
+
+                with patch(
+                    "custom_components.steam_tracker.sensor.requests.get",
+                    side_effect=fail_request,
+                ), self.assertLogs(
+                    "custom_components.steam_tracker.sensor", "ERROR"
+                ) as logs:
+                    self.sensor.update()
+
+                self.assertEqual(len(logs.output), 1)
+                self.assertIn(
+                    f"Error fetching global stats [{context}] (HTTPError, HTTP 500)",
+                    logs.output[0],
+                )
+                for secret in (
+                    "SECRET_KEY", "PRIVATE_ACCOUNT", "UNTRUSTED_SERVER_TEXT",
+                    "https://", "TEST_API_KEY", "TEST_STEAM_ID",
+                ):
+                    self.assertNotIn(secret, logs.output[0])
+                self.assertFalse(self.sensor.available)
+                self.assertIsNone(self.sensor.native_value)
+                self.assertEqual(self.sensor.extra_state_attributes, {})
+                self.assertEqual(len(self.requests), request_count)
+                self.sensor.update()
+                self.assertTrue(self.sensor.available)
+
+    def test_achievement_transport_and_validation_errors_keep_safe_context(self):
+        for failure in (
+            requests.ReadTimeout("SECRET_KEY in https://private.example/"),
+            ValueError("SECRET_KEY in untrusted response"),
+        ):
+            with self.subTest(error=type(failure).__name__):
+                def fail_request(url, *, params, timeout):
+                    if url == API_ACHIEVEMENTS:
+                        raise failure
+                    return self.get(url, params=params, timeout=timeout)
+
+                with patch(
+                    "custom_components.steam_tracker.sensor.requests.get",
+                    side_effect=fail_request,
+                ), self.assertLogs(
+                    "custom_components.steam_tracker.sensor", "ERROR"
+                ) as logs:
+                    self.sensor.update()
+                self.assertIn(
+                    f"[GetPlayerAchievements/v1, appid=1] ({type(failure).__name__})",
+                    logs.output[0],
+                )
+                self.assertNotIn("SECRET_KEY", logs.output[0])
+                self.assertNotIn("https://", logs.output[0])
+                self.assertFalse(self.sensor.available)
+
+    def test_http_500_without_achievements_requires_confirmed_empty_schema(self):
+        for sensor_type in (
+            SteamGlobalStatsSensor, SteamRecentAchievementsSensor, SteamPlaytimeSensor
+        ):
+            with self.subTest(sensor=sensor_type.__name__):
+                sensor = sensor_type("TEST_API_KEY", "TEST_STEAM_ID", "Stats")
+
+                def fail_no_stats_request(url, *, params, timeout):
+                    if url == API_ACHIEVEMENTS and params["appid"] == 2:
+                        self.requests.append((url, 2))
+                        return response({"error": "UNTRUSTED_SERVER_TEXT"}, 500)
+                    return self.get(url, params=params, timeout=timeout)
+
+                self.requests.clear()
+                with patch(
+                    "custom_components.steam_tracker.sensor.requests.get",
+                    side_effect=fail_no_stats_request,
+                ):
+                    sensor.update()
+                self.assertTrue(sensor.available)
+                self.assertEqual(self.requests.count((API_ACHIEVEMENTS, 2)), 1)
+                self.assertEqual(self.requests.count((API_SCHEMA, 2)), 1)
+                if sensor_type is SteamGlobalStatsSensor:
+                    self.assertEqual(sensor.native_value, 1)
+                    self.assertEqual(sensor.extra_state_attributes["achievements_possible"], 1)
+                    self.assertEqual(sensor.extra_state_attributes["perfect_games"], 1)
+                else:
+                    key = (
+                        "recent_achievements"
+                        if sensor_type is SteamRecentAchievementsSensor
+                        else "top_5_games"
+                    )
+                    game = sensor.extra_state_attributes[key][1]
+                    if sensor_type is SteamRecentAchievementsSensor:
+                        progress = (game["unlocked"], game["total"], game["percent"])
+                    else:
+                        progress = (
+                            game["achievements_unlocked"], game["achievements_total"],
+                            game["achievements_percent"],
+                        )
+                    self.assertEqual(progress, (0, 0, None))
+
+    def test_http_500_with_failed_or_nonempty_schema_never_publishes_partial_totals(self):
+        schemas = (
+            response({}),
+            response({"game": None}),
+            response({"game": {"availableGameStats": None}}),
+            response({"game": {"availableGameStats": {"achievements": None}}}),
+            response({"game": {}}, 500),
+            response({"game": {}}, 403),
+            response({"game": {"availableGameStats": {
+                "achievements": [{"name": "UNKNOWN_PROGRESS"}],
+            }}}),
+        )
+        for schema in schemas:
+            with self.subTest(status=schema.status_code, payload=schema.content):
+                self.sensor.update()
+                self.assertTrue(self.sensor.available)
+                self.schema = schema
+
+                def fail_no_stats_request(url, *, params, timeout):
+                    if url == API_ACHIEVEMENTS and params["appid"] == 2:
+                        return response({}, 500)
+                    return self.get(url, params=params, timeout=timeout)
+
+                with patch(
+                    "custom_components.steam_tracker.sensor.requests.get",
+                    side_effect=fail_no_stats_request,
+                ), self.assertLogs("custom_components.steam_tracker.sensor", "ERROR"):
+                    self.sensor.update()
+                self.assertFalse(self.sensor.available)
+                self.assertIsNone(self.sensor.native_value)
+                self.assertEqual(self.sensor.extra_state_attributes, {})
+                self.schema = response({"game": {}})
+                self.sensor.update()
+                self.assertTrue(self.sensor.available)
 
     def test_schema_verification_accepts_game_without_stats(self):
         self.assertEqual(

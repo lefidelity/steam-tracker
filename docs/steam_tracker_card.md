@@ -7,6 +7,16 @@ statistics, top-five games, friends, and full-library views. Detailed, compact,
 and single-line layouts are available. Friends and the full library include
 search and filtering or sorting. A visual editor selects the account, view, layout, appearance,
 language, and display options. Multiple cards can be combined into a dashboard.
+
+Integration 0.9.8 and card 0.9.8 extend player statistics with the
+overall achievement rate, locked achievement count, six exact completion groups,
+and up to five completion candidates, without additional Steam requests. Detailed
+and compact layouts show the additions; single-line retains its original metrics.
+Games without achievements are separate, and older sensors retain their existing
+display. Both 0.9.8 updates are required; version 0.9.5 alone does
+not supply the new attributes.
+
+![Player statistics in 0.9.8 with fictional games](images/steam_tracker_achievement_statistics.png)
 The editor can independently hide the upper-right account label and the title,
 preserving any custom title. Offline profiles show a relative last-online time
 below their status in detailed and compact layouts when `lastlogoff` is available.
@@ -18,7 +28,7 @@ and exact playtime-range filters, with default sorting and filtering in the edit
 Game and friend names support configurable Steam links or sensor-detail actions;
 the default is no action. Full-library Steam links and playtime filters use the
 new `appid` and `playtime_minutes` fields in `all_games`, requiring the integration
-update to 0.9.5 alongside the card. Earlier integration versions lack these fields.
+update to at least 0.9.5 alongside the card. Earlier integration versions lack these fields.
 Existing data still supports searching, sorting, and sensor-detail actions.
 
 Version 0.9.5 also adds **Show data freshness** in the editor
@@ -70,12 +80,70 @@ contains English/German installation instructions, `dist/steam-tracker-card.js`,
 an interactive preview, and automated logic/browser checks. The GitHub repository
 is [lefidelity/steam-tracker-card](https://github.com/lefidelity/steam-tracker-card).
 HACS validation and tests in a real Home Assistant instance are still pending.
-The integration and card are both released as 0.9.5; install and update
+The integration and card are both released as 0.9.8; install and update
 them separately. Library additions require integration 0.7.1 or newer;
 profile details use existing status and current-game attributes.
 
 See the card's [installation instructions](https://github.com/lefidelity/steam-tracker-card#installation)
 for HACS custom repository and manual installation steps.
+
+## Configuration examples
+
+These are small card configurations, not complete dashboards. Install the
+companion card first. It is optional; for custom cards and automations, use the
+[English sensor reference](sensors_en.md) or [German sensor reference](sensors_de.md).
+
+### One view
+
+With one discovered account, automatic assignment is sufficient:
+
+```yaml
+type: custom:steam-tracker-card
+view: player_stats
+layout: detailed
+language: en
+```
+
+Use `profile`, `current_game`, `recent_games`, `library_stats`, `player_stats`,
+`top_games`, `friends`, or `games`. Layouts are `detailed`, `compact`, and
+`single_line`. The visual editor can select these options without YAML.
+
+### Two accounts
+
+Select each account in its card's visual editor. The editor writes the account
+identifier; the example values below are placeholders, not Steam IDs or account
+display names. Replace them with the values produced by your editor:
+
+```yaml
+type: vertical-stack
+cards:
+  - type: custom:steam-tracker-card
+    view: profile
+    account: ACCOUNT_DEVICE_ID_A
+    language: en
+  - type: custom:steam-tracker-card
+    view: profile
+    account: ACCOUNT_DEVICE_ID_B
+    language: en
+```
+
+### Manual sensor assignment
+
+For renamed entities or unavailable account discovery, assign the actual entity
+ID from Home Assistant. Assign every override to the intended account:
+
+```yaml
+type: custom:steam-tracker-card
+view: player_stats
+layout: compact
+language: en
+entities:
+  global_stats: sensor.steam_tracker_global_stats
+```
+
+No API key belongs in any card configuration. Version 0.9.5 shows its existing
+statistics; the additional player statistics require integration 0.9.8 and card
+0.9.8 as described above.
 
 ## Repository names
 
@@ -91,6 +159,14 @@ The integration domain remains `steam_tracker`; the repository name does not
 require changing sensor IDs or attributes.
 
 ## Deutsche Kurzfassung
+
+Integration 0.9.8 und Karte 0.9.8 ergänzen die Spieler-Statistik
+um Gesamt-Erfolgsquote, gesperrte Erfolge, sechs Abschlussgruppen und bis zu fünf
+Abschlusskandidaten. Zusätzliche Steam-Abfragen sind nicht nötig. Ausführliche
+und kompakte Darstellung zeigen die Ergänzungen; der Einzeiler behält seine
+bisherigen Kennzahlen. Spiele ohne Erfolge stehen separat. Ältere Sensoren
+behalten ihre bisherige Darstellung; beide Updates auf 0.9.8 sind erforderlich.
+Version 0.9.5 allein liefert die neuen Attribute nicht.
 
 Die separate **Steam Tracker Card** bietet Profil, aktuelles Spiel, kürzlich
 gespielte Spiele, Bibliothek-Statistik, Spieler-Statistik, Top-5-Spiele, Freunde
@@ -111,7 +187,7 @@ und Standardsortierung sind im Editor wählbar. Ein Klick auf Spiel- oder
 Freundesnamen kann Steam oder die zugehörigen Sensordetails öffnen; standardmäßig
 bleibt die Aktion deaktiviert. Die neuen Bibliotheksfilter und Steam-Links nutzen
 `appid` und `playtime_minutes` aus `all_games`; dafür muss auch die Integration
-auf 0.9.5 aktualisiert werden. Ältere Integrationen liefern diese Felder nicht. Suche, Sortierung und Sensordetails funktionieren auch mit älteren Daten.
+auf mindestens 0.9.5 aktualisiert werden. Ältere Integrationen liefern diese Felder nicht. Suche, Sortierung und Sensordetails funktionieren auch mit älteren Daten.
 
 Optional lässt sich mit **Datenstand anzeigen** (`show_data_status: true`) in
 allen Ansichten der letzte erfolgreiche Abruf einblenden. Dafür ist Integration
@@ -143,6 +219,66 @@ echten Home-Assistant-Instanz stehen noch aus.
 Für beide Projekte wird kein `hacs-`-Präfix benötigt. Das Integrationsrepository
 heißt auf GitHub `lefidelity/steam-tracker`; Dokumentation, Manifest, HACS-Link
 und lokales Git-Remote verwenden diesen Namen. Die Integration erscheint als
-Version 0.9.5, die Karte ebenfalls als 0.9.5; beide werden separat installiert.
+Version 0.9.8, die Karte ebenfalls als 0.9.8; beide werden separat installiert.
 Die technische Domain bleibt
 `steam_tracker`; eine Änderung der Sensor-IDs ist für den Repository-Namen nicht nötig.
+
+## Kleine Konfigurationsbeispiele
+
+Diese Beispiele sind einzelne Karten beziehungsweise ein kleiner Kartenstapel,
+keine vollständigen Dashboards. Zuerst die Companion Card installieren. Sie bleibt
+optional: Für eigene Karten und Automationen gibt es die
+[deutsche Sensorreferenz](sensors_de.md) und die [englische Referenz](sensors_en.md).
+
+### Eine Ansicht
+
+Bei einem erkannten Konto genügt die automatische Zuordnung:
+
+```yaml
+type: custom:steam-tracker-card
+view: player_stats
+layout: detailed
+language: de
+```
+
+Ansichten: `profile`, `current_game`, `recent_games`, `library_stats`,
+`player_stats`, `top_games`, `friends`, `games`. Darstellungen: `detailed`,
+`compact`, `single_line`. Diese Auswahl bietet auch der visuelle Editor.
+
+### Zwei Konten
+
+Jedes Konto im visuellen Editor seiner Karte auswählen. Der Editor schreibt die
+Konto-ID; die folgenden Werte sind Platzhalter, keine Steam-IDs oder Anzeigenamen.
+Durch die vom Editor erzeugten Werte ersetzen:
+
+```yaml
+type: vertical-stack
+cards:
+  - type: custom:steam-tracker-card
+    view: profile
+    account: ACCOUNT_DEVICE_ID_A
+    language: de
+  - type: custom:steam-tracker-card
+    view: profile
+    account: ACCOUNT_DEVICE_ID_B
+    language: de
+```
+
+### Sensor manuell zuweisen
+
+Für umbenannte Entitäten oder fehlende automatische Kontozuordnung die
+tatsächliche Entity-ID aus Home Assistant verwenden. Jede manuelle Zuordnung
+muss zum beabsichtigten Konto gehören:
+
+```yaml
+type: custom:steam-tracker-card
+view: player_stats
+layout: compact
+language: de
+entities:
+  global_stats: sensor.steam_tracker_global_stats
+```
+
+API-Keys gehören nicht in die Kartenkonfiguration. Version 0.9.5 zeigt ihre
+bisherigen Statistiken; die zusätzlichen Spielerstatistiken benötigen die oben
+beschriebenen Updates von Integration und Karte auf 0.9.8.
