@@ -2,7 +2,7 @@
 
 [English](sensors_en.md) · [Installation und Einrichtung](../README.md) · [Companion Card](steam_tracker_card.md)
 
-Diese Referenz beschreibt **Integration 0.9.8**. Version 0.9.8 ergänzt die sechs
+Diese Referenz beschreibt **Integration 0.9.9**. Version 0.9.8 ergänzt die sechs
 zusätzlichen Global-Stats-Attribute weiter unten, die Schema-Gegenprüfung nach
 einem Achievement-HTTP-500 und die strenge Prüfung einzelner Freundesstatus.
 Version 0.9.5 enthält diese Ergänzungen nicht. Die Bibliothekskennzahlen stammen aus

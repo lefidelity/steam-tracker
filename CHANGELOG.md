@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.9.9 - 2026-11-08
+
+### Changes
+
+- Add the full MIT license and copyright notice to the repository and the
+  installable integration directory so component-only ZIPs include the license.
+- Link the license from the README.
+
+### Distribution
+
+- Bump the integration source version to 0.9.9 alongside Steam Tracker Card 0.9.9.
+  Commit and push the source changes without publishing GitHub releases or assets.
+- Sensor behavior, attribute contracts, and minimum card compatibility remain
+  unchanged from integration 0.9.8.
+
+### Validation
+
+- Python syntax, integration/HACS JSON, matching MIT license copies, and Git
+  whitespace checks passed. Integration Python code and tests are unchanged.
+- Companion card: JavaScript syntax, 21 logic tests, and browser checks passed.
+  No authenticated Steam requests were made.
+
 ## 0.9.8 - 2026-11-06
 
 ### Changes

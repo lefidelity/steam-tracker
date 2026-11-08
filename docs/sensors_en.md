@@ -2,7 +2,7 @@
 
 [Deutsch](sensors_de.md) · [Installation and setup](../README.md) · [Companion card](steam_tracker_card.md)
 
-This reference describes **integration 0.9.8**. Version 0.9.8 adds the six extra
+This reference describes **integration 0.9.9**. Version 0.9.8 adds the six extra
 Global Stats attributes listed below, schema confirmation after an achievement
 HTTP 500, and strict validation of individual friend presence. Version 0.9.5
 does not include these additions.

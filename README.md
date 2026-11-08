@@ -16,7 +16,8 @@ affiliated with Valve or Steam.
 
 Home Assistant **2025.10.0 or newer** is required, as declared in `hacs.json`.
 The integration and companion card have independent repositories and versions;
-install and update each separately. This release is **0.9.8** for both projects.
+install and update each separately. The current source version is **0.9.9** for
+both projects. No GitHub release is published for this version.
 
 ### HACS
 
@@ -177,4 +178,7 @@ See [CHANGELOG.md](CHANGELOG.md) for release changes and executed checks.
 
 ## License
 
-MIT.
+Steam Tracker is distributed under the [MIT License](LICENSE).
+The full license and copyright notice are also included in
+`custom_components/steam_tracker/LICENSE` so they accompany the integration
+when installed or distributed as `steam_tracker.zip`.

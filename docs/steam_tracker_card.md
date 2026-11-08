@@ -80,8 +80,9 @@ contains English/German installation instructions, `dist/steam-tracker-card.js`,
 an interactive preview, and automated logic/browser checks. The GitHub repository
 is [lefidelity/steam-tracker-card](https://github.com/lefidelity/steam-tracker-card).
 HACS validation and tests in a real Home Assistant instance are still pending.
-The integration and card are both released as 0.9.8; install and update
-them separately. Library additions require integration 0.7.1 or newer;
+The current source version is 0.9.9 for both projects; install and update
+them separately. No GitHub release is published for 0.9.9.
+Library additions require integration 0.7.1 or newer;
 profile details use existing status and current-game attributes.
 
 See the card's [installation instructions](https://github.com/lefidelity/steam-tracker-card#installation)
@@ -219,7 +220,8 @@ echten Home-Assistant-Instanz stehen noch aus.
 Für beide Projekte wird kein `hacs-`-Präfix benötigt. Das Integrationsrepository
 heißt auf GitHub `lefidelity/steam-tracker`; Dokumentation, Manifest, HACS-Link
 und lokales Git-Remote verwenden diesen Namen. Die Integration erscheint als
-Version 0.9.8, die Karte ebenfalls als 0.9.8; beide werden separat installiert.
+Quellcode-Version 0.9.9, die Karte ebenfalls als 0.9.9; beide werden separat
+installiert. Für 0.9.9 wird kein GitHub-Release veröffentlicht.
 Die technische Domain bleibt
 `steam_tracker`; eine Änderung der Sensor-IDs ist für den Repository-Namen nicht nötig.
 
