@@ -2,12 +2,9 @@
 
 [Deutsch](sensors_de.md) · [Installation and setup](../README.md) · [Companion card](steam_tracker_card.md)
 
-This reference describes **integration 0.9.9**. Version 0.9.8 adds the six extra
-Global Stats attributes listed below, schema confirmation after an achievement
-HTTP 500, and strict validation of individual friend presence. Version 0.9.5
-does not include these additions.
-Library usage attributes were added in 0.7.1; `all_games.appid`,
-`all_games.playtime_minutes`, and `last_successful_update` were added in 0.9.5.
+This reference describes **integration 1.0.0**: all eight sensors, their states,
+attributes, calculations, and failure handling. Earlier versions may lack newer
+attributes; compatibility notes identify them where relevant.
 
 The integration works without the companion card. Use its sensors in your own
 cards, templates, or automations. All examples below use fictional names,
@@ -49,7 +46,7 @@ and can be `null`. A missing optional attribute is different from a zero value.
 | `0` | A confirmed zero, such as an empty library, zero friends, or no unlocked achievements |
 | `none` | Literal state string: no current game, or no recent games |
 | `null` | JSON attribute value: unknown/absent metadata or a percentage without a denominator; Jinja reads it as `none` |
-| `Unknown` | Capitalized presence label for an unrecognized status; from 0.9.8 also used for missing/invalid friend presence |
+| `Unknown` | Presence label for an unrecognized code or missing/invalid friend presence |
 | `unknown` | Home Assistant's unknown state; the recent-games parser also uses this literal if the first returned game lacks a name |
 | `unavailable` | Initial state before the first successful refresh, or a failed primary request/invalid required data |
 
@@ -64,11 +61,11 @@ Public profile, game details, and friends-list visibility affect the correspondi
 API data. Private or missing data can make individual sensors unavailable while
 other sensors continue working. A timeout alone does not prove privacy or an
 invalid key. Only HTTP 401/403 from the status/current-game player-summary request
-starts reauthentication for UI accounts.
+starts reauthentication for accounts configured through the UI.
 
 ## Shared timestamp and refresh behavior
 
-Every successful sensor includes `last_successful_update`, an ISO 8601 UTC string,
+After a successful refresh, each sensor includes `last_successful_update`, an ISO 8601 UTC string,
 for example `2026-11-06T12:00:00+00:00`. It records a successful validated fetch,
 including unchanged values and confirmed empty results. It is cleared on primary
 failure. Home Assistant's `last_changed` and `last_updated` are not substitutes.
@@ -98,7 +95,7 @@ Use your actual entity ID. An existing scan is not restarted; status/game can
 reuse a summary younger than 15 seconds. **Set state** only changes Home
 Assistant's representation and does not contact Steam. Failed Global Stats
 refreshes otherwise wait for the next daily interval; no shorter automatic
-retry is implemented yet.
+retry is implemented.
 
 ## Status
 
@@ -115,6 +112,10 @@ this sensor unavailable; an unrecognized integer yields `Unknown`.
 | 5 | `Looking to trade` |
 | 6 | `Looking to play` |
 | Other integer | `Unknown` |
+
+These are the sensor values used by automations. Steam Tracker Card displays
+`Snooze` as **Idle** in English and **Inaktiv** in German; it does not rename the
+sensor value.
 
 | Attribute | Type | Meaning |
 | --- | --- | --- |
@@ -138,9 +139,11 @@ this sensor unavailable; an unrecognized integer yields `Unknown`.
 
 ## Current game
 
-**State:** game title, or literal `none` when a readable summary indicates no
-current game. Inaccessible game data remains unavailable. When no game is
-running, only the shared timestamp is present; game-specific attributes are absent.
+**State:** game title, or literal `none` when a readable summary contains no
+current-game information and has valid presence data. An explicitly non-public
+summary without game information is unavailable. With `none`, only the shared
+timestamp is present; game-specific attributes are absent. A missing game field
+alone does not tell the integration whether game activity is hidden.
 
 | Attribute | Type | Meaning |
 | --- | --- | --- |
@@ -348,7 +351,8 @@ invalidates the whole sensor, rather than returning a partial list.
 **State:** total unlocked achievements across the returned owned library. The
 scan requests player achievements for every owned game and badges afterwards.
 All requested progress and badge data must be readable; no partial totals are
-published. A single game's error can therefore make only Global Stats unavailable.
+published. A single game's error can make Global Stats unavailable even while
+other sensors work.
 
 | Attribute | Type / unit | Meaning |
 | --- | --- | --- |
@@ -359,7 +363,7 @@ published. A single game's error can therefore make only Global Stats unavailabl
 | `badge_count` | integer | Number of badge records returned by Steam |
 | `card_badge_count` | integer | Number of returned badges with an `appid`: game/trading-card badges, not the number of individual trading cards |
 
-### Additional attributes — from 0.9.8
+### Completion breakdown (available since 0.9.8)
 
 These use the same complete scan, with **no additional Steam requests**:
 
@@ -372,7 +376,7 @@ These use the same complete scan, with **no additional Steam requests**:
 | `completion_distribution` | object | Integer counts in the six groups below |
 | `completion_candidates` | list | Up to five incomplete games ranked as described below |
 
-The existing average and new overall rate answer different questions: games at
+Average completion and the overall percentage weight the data differently: games at
 1/1 and 0/99 have an average completion of 50% and an overall rate of 1%.
 Games without achievements are excluded from both rates and perfect-game counts.
 An empty/no-achievement library gives zero counts, an empty candidate list,

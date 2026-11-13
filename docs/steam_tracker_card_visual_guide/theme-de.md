@@ -2,7 +2,7 @@
 
 [All appearances and languages](../steam_tracker_card_visual_guide.md)
 
-Screenshots of Steam Tracker Card 0.9.5 with fictional accounts and games.
+Screenshots of Steam Tracker Card 1.0.0 with fictional accounts and games.
 Click an image to open it at full resolution. Each column names the matching YAML layout.
 
 The Home Assistant theme appearance uses a light reference theme here.
@@ -20,7 +20,7 @@ view: profile
 layout: detailed
 ```
 
-Full means `detailed`. Compact is `compact`; single line is `single_line`.
+YAML layouts: `detailed`, `compact`, and `single_line`.
 Single-line layouts hide the heading and detailed profile/achievement information.
 List views still show one row per entry, with search controls for friends and all games.
 
@@ -28,62 +28,62 @@ List views still show one row per entry, with search controls for friends and al
 
 `view: profile`
 
-| Full (`detailed`) | Compact (`compact`) | Single line (`single_line`) |
+| Detailed (`detailed`) | Compact (`compact`) | Single line (`single_line`) |
 | --- | --- | --- |
-| <a href="../images/cards/de/theme/profile-detailed.png"><img src="../images/cards/de/theme/profile-detailed.png" alt="Profile, Home Assistant theme, German, Full" width="260"></a> | <a href="../images/cards/de/theme/profile-compact.png"><img src="../images/cards/de/theme/profile-compact.png" alt="Profile, Home Assistant theme, German, Compact" width="260"></a> | <a href="../images/cards/de/theme/profile-single_line.png"><img src="../images/cards/de/theme/profile-single_line.png" alt="Profile, Home Assistant theme, German, Single line" width="260"></a> |
+| <a href="../images/cards/de/theme/profile-detailed.png"><img src="../images/cards/de/theme/profile-detailed.png" alt="Profile, Home Assistant theme, German, Detailed" width="260"></a> | <a href="../images/cards/de/theme/profile-compact.png"><img src="../images/cards/de/theme/profile-compact.png" alt="Profile, Home Assistant theme, German, Compact" width="260"></a> | <a href="../images/cards/de/theme/profile-single_line.png"><img src="../images/cards/de/theme/profile-single_line.png" alt="Profile, Home Assistant theme, German, Single line" width="260"></a> |
 
 ## Current game
 
 `view: current_game`
 
-| Full (`detailed`) | Compact (`compact`) | Single line (`single_line`) |
+| Detailed (`detailed`) | Compact (`compact`) | Single line (`single_line`) |
 | --- | --- | --- |
-| <a href="../images/cards/de/theme/current_game-detailed.png"><img src="../images/cards/de/theme/current_game-detailed.png" alt="Current game, Home Assistant theme, German, Full" width="260"></a> | <a href="../images/cards/de/theme/current_game-compact.png"><img src="../images/cards/de/theme/current_game-compact.png" alt="Current game, Home Assistant theme, German, Compact" width="260"></a> | <a href="../images/cards/de/theme/current_game-single_line.png"><img src="../images/cards/de/theme/current_game-single_line.png" alt="Current game, Home Assistant theme, German, Single line" width="260"></a> |
+| <a href="../images/cards/de/theme/current_game-detailed.png"><img src="../images/cards/de/theme/current_game-detailed.png" alt="Current game, Home Assistant theme, German, Detailed" width="260"></a> | <a href="../images/cards/de/theme/current_game-compact.png"><img src="../images/cards/de/theme/current_game-compact.png" alt="Current game, Home Assistant theme, German, Compact" width="260"></a> | <a href="../images/cards/de/theme/current_game-single_line.png"><img src="../images/cards/de/theme/current_game-single_line.png" alt="Current game, Home Assistant theme, German, Single line" width="260"></a> |
 
 ## Recently played
 
 `view: recent_games`
 
-| Full (`detailed`) | Compact (`compact`) | Single line (`single_line`) |
+| Detailed (`detailed`) | Compact (`compact`) | Single line (`single_line`) |
 | --- | --- | --- |
-| <a href="../images/cards/de/theme/recent_games-detailed.png"><img src="../images/cards/de/theme/recent_games-detailed.png" alt="Recently played, Home Assistant theme, German, Full" width="260"></a> | <a href="../images/cards/de/theme/recent_games-compact.png"><img src="../images/cards/de/theme/recent_games-compact.png" alt="Recently played, Home Assistant theme, German, Compact" width="260"></a> | <a href="../images/cards/de/theme/recent_games-single_line.png"><img src="../images/cards/de/theme/recent_games-single_line.png" alt="Recently played, Home Assistant theme, German, Single line" width="260"></a> |
+| <a href="../images/cards/de/theme/recent_games-detailed.png"><img src="../images/cards/de/theme/recent_games-detailed.png" alt="Recently played, Home Assistant theme, German, Detailed" width="260"></a> | <a href="../images/cards/de/theme/recent_games-compact.png"><img src="../images/cards/de/theme/recent_games-compact.png" alt="Recently played, Home Assistant theme, German, Compact" width="260"></a> | <a href="../images/cards/de/theme/recent_games-single_line.png"><img src="../images/cards/de/theme/recent_games-single_line.png" alt="Recently played, Home Assistant theme, German, Single line" width="260"></a> |
 
 ## Library statistics
 
 `view: library_stats`
 
-| Full (`detailed`) | Compact (`compact`) | Single line (`single_line`) |
+| Detailed (`detailed`) | Compact (`compact`) | Single line (`single_line`) |
 | --- | --- | --- |
-| <a href="../images/cards/de/theme/library_stats-detailed.png"><img src="../images/cards/de/theme/library_stats-detailed.png" alt="Library statistics, Home Assistant theme, German, Full" width="260"></a> | <a href="../images/cards/de/theme/library_stats-compact.png"><img src="../images/cards/de/theme/library_stats-compact.png" alt="Library statistics, Home Assistant theme, German, Compact" width="260"></a> | <a href="../images/cards/de/theme/library_stats-single_line.png"><img src="../images/cards/de/theme/library_stats-single_line.png" alt="Library statistics, Home Assistant theme, German, Single line" width="260"></a> |
+| <a href="../images/cards/de/theme/library_stats-detailed.png"><img src="../images/cards/de/theme/library_stats-detailed.png" alt="Library statistics, Home Assistant theme, German, Detailed" width="260"></a> | <a href="../images/cards/de/theme/library_stats-compact.png"><img src="../images/cards/de/theme/library_stats-compact.png" alt="Library statistics, Home Assistant theme, German, Compact" width="260"></a> | <a href="../images/cards/de/theme/library_stats-single_line.png"><img src="../images/cards/de/theme/library_stats-single_line.png" alt="Library statistics, Home Assistant theme, German, Single line" width="260"></a> |
 
 ## Player statistics
 
 `view: player_stats`
 
-| Full (`detailed`) | Compact (`compact`) | Single line (`single_line`) |
+| Detailed (`detailed`) | Compact (`compact`) | Single line (`single_line`) |
 | --- | --- | --- |
-| <a href="../images/cards/de/theme/player_stats-detailed.png"><img src="../images/cards/de/theme/player_stats-detailed.png" alt="Player statistics, Home Assistant theme, German, Full" width="260"></a> | <a href="../images/cards/de/theme/player_stats-compact.png"><img src="../images/cards/de/theme/player_stats-compact.png" alt="Player statistics, Home Assistant theme, German, Compact" width="260"></a> | <a href="../images/cards/de/theme/player_stats-single_line.png"><img src="../images/cards/de/theme/player_stats-single_line.png" alt="Player statistics, Home Assistant theme, German, Single line" width="260"></a> |
+| <a href="../images/cards/de/theme/player_stats-detailed.png"><img src="../images/cards/de/theme/player_stats-detailed.png" alt="Player statistics, Home Assistant theme, German, Detailed" width="260"></a> | <a href="../images/cards/de/theme/player_stats-compact.png"><img src="../images/cards/de/theme/player_stats-compact.png" alt="Player statistics, Home Assistant theme, German, Compact" width="260"></a> | <a href="../images/cards/de/theme/player_stats-single_line.png"><img src="../images/cards/de/theme/player_stats-single_line.png" alt="Player statistics, Home Assistant theme, German, Single line" width="260"></a> |
 
 ## Top 5 games
 
 `view: top_games`
 
-| Full (`detailed`) | Compact (`compact`) | Single line (`single_line`) |
+| Detailed (`detailed`) | Compact (`compact`) | Single line (`single_line`) |
 | --- | --- | --- |
-| <a href="../images/cards/de/theme/top_games-detailed.png"><img src="../images/cards/de/theme/top_games-detailed.png" alt="Top 5 games, Home Assistant theme, German, Full" width="260"></a> | <a href="../images/cards/de/theme/top_games-compact.png"><img src="../images/cards/de/theme/top_games-compact.png" alt="Top 5 games, Home Assistant theme, German, Compact" width="260"></a> | <a href="../images/cards/de/theme/top_games-single_line.png"><img src="../images/cards/de/theme/top_games-single_line.png" alt="Top 5 games, Home Assistant theme, German, Single line" width="260"></a> |
+| <a href="../images/cards/de/theme/top_games-detailed.png"><img src="../images/cards/de/theme/top_games-detailed.png" alt="Top 5 games, Home Assistant theme, German, Detailed" width="260"></a> | <a href="../images/cards/de/theme/top_games-compact.png"><img src="../images/cards/de/theme/top_games-compact.png" alt="Top 5 games, Home Assistant theme, German, Compact" width="260"></a> | <a href="../images/cards/de/theme/top_games-single_line.png"><img src="../images/cards/de/theme/top_games-single_line.png" alt="Top 5 games, Home Assistant theme, German, Single line" width="260"></a> |
 
 ## Friends
 
 `view: friends`
 
-| Full (`detailed`) | Compact (`compact`) | Single line (`single_line`) |
+| Detailed (`detailed`) | Compact (`compact`) | Single line (`single_line`) |
 | --- | --- | --- |
-| <a href="../images/cards/de/theme/friends-detailed.png"><img src="../images/cards/de/theme/friends-detailed.png" alt="Friends, Home Assistant theme, German, Full" width="260"></a> | <a href="../images/cards/de/theme/friends-compact.png"><img src="../images/cards/de/theme/friends-compact.png" alt="Friends, Home Assistant theme, German, Compact" width="260"></a> | <a href="../images/cards/de/theme/friends-single_line.png"><img src="../images/cards/de/theme/friends-single_line.png" alt="Friends, Home Assistant theme, German, Single line" width="260"></a> |
+| <a href="../images/cards/de/theme/friends-detailed.png"><img src="../images/cards/de/theme/friends-detailed.png" alt="Friends, Home Assistant theme, German, Detailed" width="260"></a> | <a href="../images/cards/de/theme/friends-compact.png"><img src="../images/cards/de/theme/friends-compact.png" alt="Friends, Home Assistant theme, German, Compact" width="260"></a> | <a href="../images/cards/de/theme/friends-single_line.png"><img src="../images/cards/de/theme/friends-single_line.png" alt="Friends, Home Assistant theme, German, Single line" width="260"></a> |
 
 ## All games
 
 `view: games`
 
-| Full (`detailed`) | Compact (`compact`) | Single line (`single_line`) |
+| Detailed (`detailed`) | Compact (`compact`) | Single line (`single_line`) |
 | --- | --- | --- |
-| <a href="../images/cards/de/theme/games-detailed.png"><img src="../images/cards/de/theme/games-detailed.png" alt="All games, Home Assistant theme, German, Full" width="260"></a> | <a href="../images/cards/de/theme/games-compact.png"><img src="../images/cards/de/theme/games-compact.png" alt="All games, Home Assistant theme, German, Compact" width="260"></a> | <a href="../images/cards/de/theme/games-single_line.png"><img src="../images/cards/de/theme/games-single_line.png" alt="All games, Home Assistant theme, German, Single line" width="260"></a> |
+| <a href="../images/cards/de/theme/games-detailed.png"><img src="../images/cards/de/theme/games-detailed.png" alt="All games, Home Assistant theme, German, Detailed" width="260"></a> | <a href="../images/cards/de/theme/games-compact.png"><img src="../images/cards/de/theme/games-compact.png" alt="All games, Home Assistant theme, German, Compact" width="260"></a> | <a href="../images/cards/de/theme/games-single_line.png"><img src="../images/cards/de/theme/games-single_line.png" alt="All games, Home Assistant theme, German, Single line" width="260"></a> |

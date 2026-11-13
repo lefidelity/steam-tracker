@@ -1,5 +1,40 @@
 # Changelog
 
+## 1.0.0 - 2026-11-13
+
+### Changes
+
+- Update the integration version to 1.0.0. Sensor values, attributes, entity IDs,
+  update intervals, and account configuration remain compatible with 0.9.9.
+- Review the installation guide, English/German sensor references, companion-card
+  documentation, and gallery links. Clarify availability, statistics, and the
+  difference between sensor values and translated card labels.
+- Add separate Paper Kingdom and Orbit Runner illustrations to the companion-card
+  previews and hide the rear half of Beyond the Blue's ring behind the planet.
+- Regenerate all 96 gallery views and the overview/statistics illustrations from
+  Steam Tracker Card 1.0.0, using fictional data and the corrected artwork.
+
+### Updating
+
+- Install the integration and restart Home Assistant. Update the card separately
+  and reload the browser; manual card resources can use `?v=1.0.0`.
+- Existing account entries, entity IDs, attributes, dashboards, and automations
+  remain compatible. No configuration migration is required.
+
+### Validation
+
+- Python syntax, seven integration/card metadata and translation JSON files, SVG
+  files, MIT copies, and Git whitespace checks passed. Executable integration code
+  and tests are unchanged; only a YAML setup docstring was corrected.
+- Reviewed all 18 public Markdown files across both projects. Checked 520 local
+  and cross-project links, 23 YAML blocks, and 22 card configurations against the
+  card's configuration parser. Both guides list all 17 configuration options.
+- All 16 sensor JSON examples remain valid and unchanged. Verified 192 gallery
+  PNGs and 11 shared/special image copies; new captures made no external requests.
+- Companion card: JavaScript syntax, 21 logic tests, and browser checks passed.
+  Home Assistant runtime tests were not rerun: the local Docker test environment
+  was unavailable and executable integration code is unchanged.
+
 ## 0.9.9 - 2026-11-08
 
 ### Changes

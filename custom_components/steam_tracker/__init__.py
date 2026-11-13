@@ -10,7 +10,7 @@ from .const import DOMAIN, PLATFORMS
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Set up the Steam Tracker integration (YAML not supported)."""
+    """Set up shared integration data for YAML and config entries."""
     hass.data.setdefault(DOMAIN, {})
     return True
 

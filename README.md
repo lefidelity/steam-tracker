@@ -16,8 +16,8 @@ affiliated with Valve or Steam.
 
 Home Assistant **2025.10.0 or newer** is required, as declared in `hacs.json`.
 The integration and companion card have independent repositories and versions;
-install and update each separately. The current source version is **0.9.9** for
-both projects. No GitHub release is published for this version.
+install and update each separately. The current source version is **1.0.0** for
+both projects.
 
 ### HACS
 
@@ -40,9 +40,8 @@ Older supported versions can run the integration without those local images.
 ## Steam account preparation
 
 You need a **17-digit SteamID64** and a **Steam Web API key**. Find the SteamID64
-under your Steam account details, and obtain a key from
-[Steam's API-key page](https://steamcommunity.com/dev/apikey). For the registration
-form, a domain such as `localhost` can be used. Keep the key private.
+under your Steam account details, and register a key on
+[Steam's API-key page](https://steamcommunity.com/dev/apikey). Keep the key private.
 
 Illustrations: [find the SteamID64](docs/images/retrieve_steam_id.png) and
 [register an API key](docs/images/create_web_api_key.png).
@@ -67,11 +66,10 @@ key is invalid or the profile is private. See the
 2. Select **Steam Tracker**.
 3. Enter the SteamID64, API key, and account name.
 
-From integration 0.9.5, setup validates the input and makes one player-summary
-request before saving. It distinguishes access denied, connection/timeouts,
-missing accounts, and unreadable responses. A private games library does not
-prevent account setup. Duplicate Steam accounts are rejected without changing
-existing keys. API-key input uses a password field.
+Setup checks the 17-digit SteamID64 and makes one player-summary request before
+saving. It reports access denied, connection errors, missing accounts, and invalid
+responses separately. A private games library does not prevent account setup.
+Duplicate Steam accounts are rejected. The API-key field hides the entered key.
 
 ### Multiple accounts and entity IDs
 
@@ -130,12 +128,11 @@ account data out of repository files and public issue reports.
 
 The [English sensor reference](docs/sensors_en.md) and
 [deutsche Sensorreferenz](docs/sensors_de.md) document all states, attribute and
-list-item types, units, refresh intervals, privacy/failure behavior, calculations,
-and fictional examples. They identify the Global Stats additions and
-friend-presence/schema fixes introduced in 0.9.8 alongside earlier features.
+list-item types, units, refresh intervals, calculations, and failure handling,
+with fictional examples.
 
-Every successful sensor includes `last_successful_update` from integration
-0.9.5. Fixed update intervals range from one minute to one day. Manual refresh,
+Every successful sensor includes `last_successful_update`. Fixed update intervals
+range from one minute to one day. Manual refresh,
 the short shared player-summary cache, and `0` / `none` / `null` / `Unknown` /
 `unknown` / `unavailable` are explained in the references.
 
@@ -150,10 +147,7 @@ or additional custom-card dependencies.
 See the [card overview and small examples](docs/steam_tracker_card.md) for one
 view, multiple accounts, and manual sensor assignment. The
 [visual guide](docs/steam_tracker_card_visual_guide.md) compares all views and
-layouts. The former complete dashboards and examples for third-party custom
-cards have been removed; sensor data remains available for your own dashboards.
-Live Home Assistant frontend and HACS installation checks are separate from the
-synthetic preview/browser tests.
+layouts. You can also use the sensor data in your own dashboards and automations.
 
 ## Contributing and verification
 
@@ -169,10 +163,9 @@ python -m unittest discover -s tests -v
 ```
 
 The tested baseline is Home Assistant Core 2025.10.0 on Python 3.13. These tests
-mock Steam HTTP; they do not make authenticated Steam requests. Sensor, API,
-config-flow, cache, and statistics regression tests remain. Template-rendering
-tests tied to the removed dashboards/examples have been removed with them.
-The companion card has its own logic/browser checks in its repository.
+mock Steam HTTP and cover sensors, API responses, configuration, caching, and
+statistics. The companion card has its own logic and browser checks. These checks
+do not replace a Home Assistant installation test or a HACS installation check.
 
 See [CHANGELOG.md](CHANGELOG.md) for release changes and executed checks.
 

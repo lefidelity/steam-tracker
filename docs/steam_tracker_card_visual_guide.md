@@ -1,9 +1,10 @@
 # Steam Tracker Card visual guide
 
-All eight views in both appearances and languages, with all three layouts:
-**96 individual card images**, plus one **Steam blue / Full / English** overview.
+Steam Tracker Card **1.0.0**, with fictional account data and local game artwork.
+The gallery contains **96 cards**: eight views in three layouts, two languages,
+and two appearances.
 
-![All eight cards in Steam blue, full layout, English](images/steam_tracker_card_preview.png)
+![Eight card views in Steam blue, English, detailed layout](images/steam_tracker_card_preview.png)
 
 ## Choose an appearance and language
 
@@ -12,17 +13,13 @@ All eight views in both appearances and languages, with all three layouts:
 | Steam blue | [English gallery](steam_tracker_card_visual_guide/steam-en.md) | [German gallery](steam_tracker_card_visual_guide/steam-de.md) |
 | Home Assistant theme | [English gallery](steam_tracker_card_visual_guide/theme-en.md) | [German gallery](steam_tracker_card_visual_guide/theme-de.md) |
 
-Each gallery compares Full, Compact, and Single line next to one another.
-Click any card image to open the full-resolution PNG.
-
-The gallery keeps optional data freshness disabled. See the
-[successful-fetch timestamp example](steam_tracker_card.md) for the optional footer.
-Library bars use the inclusive **At least 50 h** / **ab 50 h** label; tooltips
-in the live card explain the exact ranges.
+Each gallery compares Detailed, Compact, and Single line side by side. Click an
+image to open the full-resolution PNG. The theme examples use a light reference
+theme; your Home Assistant theme determines the colors on your dashboard.
 
 ## Find a view
 
-| View | Steam blue / English | HA theme / English | Steam blue / German | HA theme / German |
+| View | Steam / English | Theme / English | Steam / German | Theme / German |
 | --- | --- | --- | --- | --- |
 | Profile | [View](steam_tracker_card_visual_guide/steam-en.md#profile) | [View](steam_tracker_card_visual_guide/theme-en.md#profile) | [View](steam_tracker_card_visual_guide/steam-de.md#profile) | [View](steam_tracker_card_visual_guide/theme-de.md#profile) |
 | Current game | [View](steam_tracker_card_visual_guide/steam-en.md#current-game) | [View](steam_tracker_card_visual_guide/theme-en.md#current-game) | [View](steam_tracker_card_visual_guide/steam-de.md#current-game) | [View](steam_tracker_card_visual_guide/theme-de.md#current-game) |
@@ -35,12 +32,11 @@ in the live card explain the exact ranges.
 
 ## Reading the images
 
-- Full corresponds to `layout: detailed`, Compact to `compact`, and Single line to `single_line`.
-- Steam blue uses `appearance: steam`. Home Assistant theme uses `appearance: theme` and a light reference theme; it inherits your own dashboard colors in Home Assistant.
-- The screenshot languages correspond to `language: en` and `language: de`.
-- The individual cards use a consistent width of 420 CSS pixels and a 2x pixel ratio. Single-line headings are hidden by design; lists use one line per entry.
-- Full-library images include the new exact-minute playtime filter. Filtering requires integration 0.9.5 or newer, which supplies exact `playtime_minutes`.
-- Game and friend names can open Steam or the account sensor details through the editor's `item_action` setting; screenshots use its default `none`.
-- The profile example is online and playing a game. Friends and the full library include their search and filter/sort controls.
-- Images render the actual card component in the local preview with fictional accounts, games, and local artwork. Capturing them makes no Steam or external image requests.
-- These previews show Steam Tracker Card 0.9.5. Live Home Assistant frontend and HACS installation checks remain separate from the preview.
+- Layouts correspond to `detailed`, `compact`, and `single_line` in card YAML.
+- Individual cards are 420 CSS pixels wide, captured at a 2x pixel ratio.
+- Single-line layouts hide the heading and show one row per list item or summary.
+- The examples use one account, the default name action (`none`), and data
+  freshness disabled. The main guide shows the optional freshness footer.
+- All five fictional games have their own illustration. The planet in Beyond the
+  Blue covers the rear half of its ring.
+- Images come from the local preview. Rendering them makes no Steam requests.

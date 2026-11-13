@@ -2,12 +2,9 @@
 
 [English](sensors_en.md) · [Installation und Einrichtung](../README.md) · [Companion Card](steam_tracker_card.md)
 
-Diese Referenz beschreibt **Integration 0.9.9**. Version 0.9.8 ergänzt die sechs
-zusätzlichen Global-Stats-Attribute weiter unten, die Schema-Gegenprüfung nach
-einem Achievement-HTTP-500 und die strenge Prüfung einzelner Freundesstatus.
-Version 0.9.5 enthält diese Ergänzungen nicht. Die Bibliothekskennzahlen stammen aus
-0.7.1; `all_games.appid`, `all_games.playtime_minutes` und
-`last_successful_update` wurden mit 0.9.5 ergänzt.
+Diese Referenz beschreibt **Integration 1.0.0**: alle acht Sensoren, ihre Zustände,
+Attribute, Berechnungen und Fehlerbehandlung. Älteren Versionen können neuere
+Attribute fehlen; entsprechende Kompatibilitätshinweise stehen bei den Feldern.
 
 Die Integration funktioniert auch ohne Companion Card. Die Sensoren lassen sich
 in eigenen Karten, Templates und Automationen verwenden. Alle Beispiele nutzen
@@ -23,7 +20,7 @@ Kontogerät. Für ein neues Konto namens `Steam Tracker` sind dies die üblichen
 | --- | --- | --- | --- |
 | `sensor.steam_tracker_status` | `status` | Status als Zeichenkette | 1 Minute |
 | `sensor.steam_tracker_game` | `game` | Aktueller Spieltitel oder `none` | 2 Minuten |
-| `sensor.steam_tracker_playtime` | `playtime` | Zahl, gesamte Lebenszeit-Spielstunden | 1 Stunde |
+| `sensor.steam_tracker_playtime` | `playtime` | Zahl, gesamte Spielzeit in Stunden | 1 Stunde |
 | `sensor.steam_tracker_profile` | `profile` | Ganzzahl, Steam-Level | 6 Stunden |
 | `sensor.steam_tracker_recent` | `recent_games` | Erster zurückgegebener kürzlicher Spieltitel oder `none` | 10 Minuten |
 | `sensor.steam_tracker_recent_achievements` | `recent_achievements` | Ganzzahl, Spiele mit lesbarem Erfolgsfortschritt | 1 Stunde |
@@ -36,11 +33,11 @@ bleiben erhalten, auch nach dem Umbenennen des Dienstes. Die tatsächlichen IDs
 stehen am Kontogerät. Unique-IDs verwenden `<steam_id>_<sensor_type>`; insbesondere
 unterscheiden sich der Entity-Suffix `recent` und der Sensortyp `recent_games`.
 
-Home Assistants `states()` liefert auch numerische Zustände als Zeichenketten.
+Die Funktion `states()` liefert auch numerische Zustände als Zeichenketten.
 Attribute behalten ihre JSON-Typen: Ganzzahl, Zahl, Zeichenkette, Liste, Objekt
-oder `null`. Stundenwerte sind Stunden, Prozentwerte liegen zwischen 0 und 100.
-Der aktuelle Code deklariert für diese Entitäten keine Home-Assistant-Metadaten
-`unit_of_measurement`. Die Tabellen beschreiben die erwarteten Steam-Datentypen;
+oder `null`. Spielzeiten sind Dezimalstunden, Prozentwerte liegen zwischen 0 und 100.
+Die Sensoren deklarieren keine Home-Assistant-Metadaten `unit_of_measurement`.
+Die Tabellen beschreiben die erwarteten Steam-Datentypen;
 optionale Metadaten sind nicht garantiert und können `null` sein. Ein fehlendes
 optionales Attribut ist kein bestätigter Nullwert.
 
@@ -51,27 +48,27 @@ optionales Attribut ist kein bestätigter Nullwert.
 | `0` | Bestätigter Nullwert: beispielsweise leere Bibliothek, keine Freunde oder keine freigeschalteten Erfolge |
 | `none` | Wörtlicher Sensorzustand: kein aktuelles beziehungsweise kein kürzlich gespieltes Spiel |
 | `null` | JSON-Attributwert: unbekannte/fehlende Metadaten oder eine Quote ohne Nenner; in Jinja entspricht dies `none` |
-| `Unknown` | Statusbezeichnung mit großem U; bei unbekanntem Statuscode sowie ab 0.9.8 bei fehlenden/ungültigen Freundesstatus |
+| `Unknown` | Statusbezeichnung bei unbekanntem Code oder fehlenden/ungültigen Freundesstatus |
 | `unknown` | Home Assistants unbekannter Zustand; außerdem wörtlicher Ersatzwert, wenn dem ersten kürzlichen Spiel der Name fehlt |
 | `unavailable` | Anfangszustand vor dem ersten erfolgreichen Abruf oder Fehler bei Hauptabfrage/erforderlichen Daten |
 
 Nach einem fehlgeschlagenen Hauptabruf werden alter Zustand und sämtliche eigenen
-Attribute einschließlich Erfolgszeitstempel verworfen. Der nächste gültige Abruf
-stellt die Verfügbarkeit wieder her. Ein leeres Antwortobjekt bestätigt keine
+Attribute einschließlich des Zeitstempels des letzten erfolgreichen Abrufs verworfen.
+Der nächste gültige Abruf stellt die Verfügbarkeit wieder her. Ein leeres Antwortobjekt bestätigt keine
 leere Bibliothek. Fehlende Spielelisten zählen nur dann als leer, wenn Steam
 ausdrücklich eine Ergebnisanzahl von null liefert. Für ergänzende Spielzeiten
 des aktuellen Spiels und Top-5-Erfolge gelten die unten beschriebenen Ausnahmen.
 
 Die Sichtbarkeit von Profil, Spieldetails und Freundesliste beeinflusst die
 jeweiligen API-Daten. Private oder fehlende Daten können einzelne Sensoren
-unverfügbar machen, während andere weiterarbeiten. Ein Timeout beweist weder
+nicht verfügbar machen, während andere weiterarbeiten. Ein Timeout beweist weder
 private Daten noch einen ungültigen Key. Nur HTTP 401/403 bei der Spielerübersicht
 für Status/aktuelles Spiel startet bei UI-Konten eine erneute Authentifizierung.
 
 ## Gemeinsamer Zeitstempel und Aktualisierung
 
-Jeder erfolgreiche Sensor enthält `last_successful_update` als ISO-8601-Zeitpunkt
-in UTC, beispielsweise `2026-11-06T12:00:00+00:00`. Er bezeichnet einen erfolgreich
+Nach einem erfolgreichen Abruf enthält der Sensor `last_successful_update` als
+ISO-8601-Zeitpunkt in UTC, beispielsweise `2026-11-06T12:00:00+00:00`. Er bezeichnet einen erfolgreich
 geprüften Abruf, auch bei unveränderten Werten und bestätigten leeren Ergebnissen.
 Bei einem Hauptfehler wird er entfernt. Home Assistants `last_changed` und
 `last_updated` sind kein Ersatz.
@@ -103,12 +100,12 @@ Die tatsächliche Entity-ID einsetzen. Ein laufender Scan beginnt nicht erneut;
 Status/Spiel können eine weniger als 15 Sekunden alte Übersicht wiederverwenden.
 **Zustand setzen** ändert nur die Darstellung in Home Assistant und ruft Steam
 nicht ab. Nach einem Global-Stats-Fehler folgt sonst erst der nächste Tagesabruf;
-eine frühere automatische Wiederholung ist noch nicht implementiert.
+eine frühere automatische Wiederholung ist nicht implementiert.
 
 ## Status
 
 **Zustand:** Zeichenkette mit dem Spielerstatus. Fehlender oder nicht ganzzahliger
-primärer `personastate` macht diesen Sensor unverfügbar. Ein unbekannter
+primärer `personastate` macht diesen Sensor nicht verfügbar. Ein unbekannter
 ganzzahliger Code ergibt `Unknown`.
 
 | Steam-Code | Zustand / Freundesstatus |
@@ -121,6 +118,10 @@ ganzzahliger Code ergibt `Unknown`.
 | 5 | `Looking to trade` |
 | 6 | `Looking to play` |
 | Andere Ganzzahl | `Unknown` |
+
+Diese Sensorwerte gelten auch für Automationen. Steam Tracker Card zeigt `Snooze`
+auf Deutsch als **Inaktiv**, auf Englisch als **Idle** an. Der Sensorwert bleibt
+`Snooze`.
 
 | Attribut | Typ | Bedeutung |
 | --- | --- | --- |
@@ -144,10 +145,12 @@ ganzzahliger Code ergibt `Unknown`.
 
 ## Aktuelles Spiel
 
-**Zustand:** Spieltitel oder wörtlich `none`, wenn eine lesbare Übersicht kein
-laufendes Spiel meldet. Nicht zugängliche Spieldaten bleiben unverfügbar. Ohne
-laufendes Spiel enthält der Sensor nur den gemeinsamen Zeitstempel; die
-spielspezifischen Attribute fehlen.
+**Zustand:** Spieltitel oder wörtlich `none`, wenn eine lesbare Übersicht gültige
+Statusdaten enthält und kein laufendes Spiel meldet. Eine ausdrücklich nicht
+öffentliche Übersicht ohne Spielinformation ist nicht verfügbar. Bei `none`
+enthält der Sensor nur den gemeinsamen Zeitstempel; die spielspezifischen
+Attribute fehlen. Ein fehlendes Spielfeld allein sagt der Integration nicht,
+ob die Spielaktivität verborgen ist.
 
 | Attribut | Typ | Bedeutung |
 | --- | --- | --- |
@@ -159,7 +162,7 @@ spielspezifischen Attribute fehlen.
 
 Die Spielzeit ist ergänzend. Scheitert sie oder fehlt das Spiel in der
 Bibliotheksantwort, entfällt `total_playtime_hours`; der Titel bleibt verfügbar.
-Der Erfolgszeitstempel beschreibt weiterhin die Spielerübersicht und nicht die
+Der Zeitstempel des letzten erfolgreichen Abrufs beschreibt weiterhin die Spielerübersicht und nicht die
 ergänzende Anfrage.
 
 ```json
@@ -178,19 +181,19 @@ ergänzende Anfrage.
 
 ## Spielzeit und Bibliotheksstatistik
 
-**Zustand:** gesamte Lebenszeit-Spielstunden der zurückgegebenen Bibliothek,
+**Zustand:** gesamte Spielzeit in Stunden der zurückgegebenen Bibliothek,
 eine Nachkommastelle. Eine ausdrücklich leere Bibliothek ergibt `0`. Fehlende,
-negative, nicht ganzzahlige oder boolesche Lebenszeit-Minuten machen diesen
-Sensor unverfügbar.
+negative, nicht ganzzahlige oder boolesche Minutenwerte machen diesen
+Sensor nicht verfügbar.
 
 | Attribut | Typ | Bedeutung |
 | --- | --- | --- |
 | `game_count` | Ganzzahl | Anzahl zurückgegebener eigener Spiele |
 | `total_playtime_hours` | Zahl | Derselbe Stundenwert wie der Zustand |
 | `top_5_playtime_hours` | Zahl | Gesamte Stunden der fünf meistgespielten Spiele; gemeinsam aus Minuten berechnet und einmal gerundet |
-| `top_5_games` | Liste | Bis zu fünf Spiele, absteigend nach exakten Lebenszeit-Minuten |
+| `top_5_games` | Liste | Bis zu fünf Spiele, absteigend nach exakten Gesamtminuten |
 | `all_games` | Liste | Vollständige zurückgegebene Bibliothek, nach Namen sortiert |
-| `playtime_by_gameid` | Objekt | App-ID als Zeichenkette → gerundete Lebenszeit-Stunden |
+| `playtime_by_gameid` | Objekt | App-ID als Zeichenkette → gerundete Gesamtspielstunden |
 | `pile_of_shame_count` | Ganzzahl | Spiele unter 60 Minuten einschließlich ungespielter Spiele |
 | `played_game_count` | Ganzzahl | Spiele mit mindestens einer aufgezeichneten Minute |
 | `unplayed_game_count` | Ganzzahl | Spiele mit genau null aufgezeichneten Minuten |
@@ -200,7 +203,7 @@ Sensor unverfügbar.
 | `playtime_distribution` | Objekt | Ganzzahlige Spieleanzahlen der fünf Gruppen unten |
 
 Jeder Eintrag in `all_games` enthält `appid` (Ganzzahl), `name`
-(Zeichenkette/null), `playtime_minutes` (exakte ganzzahlige Lebenszeit-Minuten)
+(Zeichenkette/null), `playtime_minutes` (gesamte Spielminuten als Ganzzahl)
 und `hours` (Zahl mit einer Nachkommastelle). Version 0.9.5 ergänzt `appid` und
 `playtime_minutes`; ältere Versionen können nur `name` und `hours` liefern.
 
@@ -212,7 +215,7 @@ alle drei Erfolgsfelder auf `null`, während die Spielzeit verfügbar bleibt.
 Bestätigte Spiele ohne Erfolge haben 0/0 und Prozentwert `null`. Bestätigte
 0/N mit N > 0 ergeben dagegen 0 Prozent.
 
-| Schlüssel in `playtime_distribution` | Exakte Lebenszeit-Minuten |
+| Schlüssel in `playtime_distribution` | Gesamte Spielminuten |
 | --- | --- |
 | `unplayed` | 0 |
 | `under_1_hour` | 1–59 |
@@ -223,7 +226,7 @@ Bestätigte Spiele ohne Erfolge haben 0/0 und Prozentwert `null`. Bestätigte
 Die Anzahlen ergeben zusammen `game_count`. Ein oder zwei Minuten zählen als
 gespielt, auch wenn gerundete Stunden 0,0 anzeigen. Die Kennzahlen entstehen aus
 derselben Bibliotheksantwort ohne zusätzliche Anfragen. Leere Bibliotheken
-ergeben leere Listen/Objekte und null Anzahlen, Stunden und Prozentwerte. Bei
+ergeben leere Listen und Objekte; Anzahlen, Stunden und Prozentwerte sind 0. Bei
 null Gesamtminuten ist der Top-5-Anteil 0 Prozent; es wird nicht durch null geteilt.
 
 ```json
@@ -258,7 +261,7 @@ null Gesamtminuten ist der Top-5-Anteil 0 Prozent; es wird nicht durch null gete
 
 **Zustand:** nicht negatives ganzzahliges Steam-Level einschließlich Level 0.
 Alle drei XP-Felder müssen als nicht negative Ganzzahlen vorliegen; sonst ist
-der Sensor unverfügbar.
+der Sensor nicht verfügbar.
 
 | Attribut | Typ / Einheit | Bedeutung |
 | --- | --- | --- |
@@ -300,7 +303,7 @@ nach `last_played`. Fehlt dem ersten Spiel der Name, lautet der Zustand `unknown
 | `appid` | Ganzzahl oder null | Steam-App-ID |
 | `name` | Zeichenkette oder null | Spieltitel |
 | `playtime_2weeks_h` | Zahl, Stunden | Spielzeit der letzten zwei Wochen, eine Nachkommastelle |
-| `playtime_total_h` | Zahl, Stunden | Gesamte Lebenszeit-Spielstunden, eine Nachkommastelle |
+| `playtime_total_h` | Zahl, Stunden | Gesamtspielzeit in Stunden, eine Nachkommastelle |
 | `logo` | Zeichenkette | Aus der App-ID abgeleitete Kopfbildadresse |
 | `last_played` | Ganzzahl oder null | Unveränderte Unix-Sekunden aus `rtime_last_played`, falls geliefert; oft fehlend/null und in dieser Antwort nicht garantiert |
 
@@ -341,7 +344,7 @@ Das Attribut `recent_achievements` enthält eine Liste dieser Felder:
 
 Jedes angefragte Spiel muss bestätigten Fortschritt liefern. Dieser Sensor
 prüft außerdem die Erfolgskennungen gegen das Spielschema. Ein Fehler eines
-Spiels macht den gesamten Sensor unverfügbar; es erscheint keine Teilliste.
+Spiels macht den gesamten Sensor nicht verfügbar; es erscheint keine Teilliste.
 
 ```json
 {
@@ -361,8 +364,8 @@ Spiels macht den gesamten Sensor unverfügbar; es erscheint keine Teilliste.
 **Zustand:** insgesamt freigeschaltete Erfolge in der zurückgegebenen eigenen
 Bibliothek. Der Scan fragt Spielererfolge für jedes Spiel und anschließend die
 Abzeichen ab. Sämtliche angefragten Fortschritts- und Abzeichendaten müssen
-lesbar sein; Teilsummen werden nicht veröffentlicht. Daher kann der Fehler eines
-einzelnen Spiels nur Global Stats unverfügbar machen.
+lesbar sein; es werden keine Teilsummen ausgegeben. Ein einzelner Spielfehler kann
+Global Stats ausfallen lassen, während andere Sensoren weiterarbeiten.
 
 | Attribut | Typ / Einheit | Bedeutung |
 | --- | --- | --- |
@@ -373,7 +376,7 @@ einzelnen Spiels nur Global Stats unverfügbar machen.
 | `badge_count` | Ganzzahl | Anzahl der von Steam zurückgegebenen Abzeicheneinträge |
 | `card_badge_count` | Ganzzahl | Zurückgegebene Abzeichen mit `appid`: Spiel-/Sammelkartenabzeichen, nicht die Anzahl einzelner Sammelkarten |
 
-### Zusätzliche Attribute — ab 0.9.8
+### Abschlussstatistik (seit 0.9.8)
 
 Sie entstehen aus demselben vollständigen Scan **ohne weitere Steam-Abfragen**:
 
@@ -386,9 +389,9 @@ Sie entstehen aus demselben vollständigen Scan **ohne weitere Steam-Abfragen**:
 | `completion_distribution` | Objekt | Ganzzahlige Anzahlen der sechs Abschlussgruppen unten |
 | `completion_candidates` | Liste | Höchstens fünf unvollständige Spiele in der unten beschriebenen Reihenfolge |
 
-Durchschnitt und Gesamtquote beantworten verschiedene Fragen: Spiele mit 1/1
-und 0/99 ergeben durchschnittlich 50 Prozent Abschluss, insgesamt aber 1 Prozent
-Erfolgsquote. Spiele ohne Erfolge zählen bei beiden Quoten und perfekten Spielen
+Der Durchschnitt gewichtet jedes Spiel gleich. Die Gesamtquote zählt alle Erfolge
+zusammen: Spiele mit 1/1 und 0/99 ergeben durchschnittlich 50 Prozent Abschluss,
+insgesamt aber 1 Prozent freigeschaltete Erfolge. Spiele ohne Erfolge zählen bei beiden Quoten und perfekten Spielen
 nicht mit. Eine leere Bibliothek beziehungsweise eine Bibliothek ohne Erfolge
 ergibt null Anzahlen, eine leere Kandidatenliste, `avg_completion_rate: 0` und
 `overall_completion_rate: null`.
@@ -465,7 +468,7 @@ nicht jedes fehlerhafte Antwortfeld erkennbar.
 **Zustand:** Anzahl zurückgegebener Freunde. Eine ausdrücklich leere Liste
 ergibt 0 und `friends: []`. Freundesübersichten werden in Gruppen von höchstens
 100 IDs geladen. Fehlt ein Freund in den Übersichten oder scheitert eine
-Anfrage, wird der Sensor unverfügbar.
+Anfrage, wird der Sensor nicht verfügbar.
 
 Das Attribut `friends` ist eine Liste dieser Felder:
 
@@ -482,7 +485,7 @@ Das Attribut `friends` ist eine Liste dieser Felder:
 `Offline`. Fehlende, nicht ganzzahlige (einschließlich boolescher und
 Fließkommawerte) und unbekannte Codes ergeben für diesen Freund `Unknown`.
 Ein lesbarer Freund bleibt in Liste und Anzahl; andere Freunde werden dadurch
-nicht unverfügbar. Codes 0–6 behalten ihre Bedeutung. Eine fehlende oder
+nicht nicht verfügbar. Codes 0–6 behalten ihre Bedeutung. Eine fehlende oder
 fehlgeschlagene Freundesübersicht bleibt ein Hauptfehler. Die Companion Card
 übersetzt `Unknown` und berücksichtigt den Status nicht im Online-Filter.
 
